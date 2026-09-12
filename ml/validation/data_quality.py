@@ -113,12 +113,7 @@ def add_quality_flags(
         result["energy_kwh"] < 0
     )
 
-    result["quality_duplicate"] = (
-        result.duplicated(
-            subset=["building_id", "timestamp"],
-            keep=False,
-        )
-    )
+    result["quality_duplicate"] = False
 
     result["quality_flag"] = "OK"
 

@@ -26,16 +26,15 @@ from ml.features.build import (  # noqa: E402
 
 
 ELECTRICITY_CANDIDATES = [
-    "data/raw/bdg2/data/meters/cleaned/electricity_cleaned.csv",
-    "data/raw/bdg2/data/meters/electricity_cleaned.csv",
+    "data/raw/bdg2/electricity_cleaned.csv",
 ]
 
 METADATA_CANDIDATES = [
-    "data/raw/bdg2/data/metadata/metadata.csv",
+    "data/raw/bdg2/metadata.csv",
 ]
 
 WEATHER_CANDIDATES = [
-    "data/raw/bdg2/data/weather/weather.csv",
+    "data/raw/bdg2/weather.csv",
 ]
 
 
