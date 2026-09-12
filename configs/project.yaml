@@ -1,0 +1,103 @@
+project:
+  name: "Building & Energy Intelligence Platform"
+  version: "0.1.0"
+  seed: 42
+
+data:
+  dataset: "bdg2"
+
+  raw_root: "data/raw/bdg2"
+  interim_root: "data/interim"
+  processed_root: "data/processed"
+  reports_root: "reports/generated"
+
+phase0:
+  candidate_datasets:
+    - "UCI Appliances Energy Prediction"
+    - "Building Data Genome Project 2"
+    - "ASHRAE Great Energy Predictor III"
+
+phase1:
+  n_buildings: 12
+
+  min_coverage_ratio: 0.85
+  max_missing_ratio: 0.15
+
+  time:
+    train_start: "2016-01-01 00:00:00"
+    train_end: "2016-09-30 23:00:00"
+
+    validation_start: "2016-10-01 00:00:00"
+    validation_end: "2016-12-31 23:00:00"
+
+    test_start: "2017-01-01 00:00:00"
+    test_end: "2017-12-31 23:00:00"
+
+    frequency: "h"
+
+  target:
+    name: "target_next_hour_kwh"
+    horizon_hours: 1
+    unit: "kWh"
+
+  features:
+    lags:
+      - 1
+      - 2
+      - 3
+      - 24
+      - 48
+      - 72
+      - 168
+
+    rolling_windows:
+      - 3
+      - 6
+      - 24
+      - 168
+
+    weather:
+      - air_temperature
+      - dew_temperature
+      - cloud_coverage
+      - wind_speed
+      - wind_direction
+      - sea_level_pressure
+      - precip_depth_1_hr
+
+    degree_day_base_c: 18.0
+
+  models:
+    ridge:
+      alpha: 10.0
+
+    random_forest:
+      n_estimators: 250
+      max_depth: 18
+      min_samples_leaf: 2
+      n_jobs: -1
+
+    hist_gradient_boosting:
+      learning_rate: 0.08
+      max_iter: 300
+      max_leaf_nodes: 31
+      l2_regularization: 0.5
+      min_samples_leaf: 20
+
+phase5_mlflow:
+  tracking_uri: "http://localhost:5000"
+
+phase8_monitoring:
+  drift:
+    reference_window: "training"
+
+  performance:
+    metrics:
+      - mae
+      - rmse
+      - cvrmse_pct
+      - nmae
+
+phase9_retraining:
+  candidate_must_beat_production: true
+  manual_approval: true

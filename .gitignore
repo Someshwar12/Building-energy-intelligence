@@ -1,0 +1,35 @@
+# Raw/public datasets
+data/raw/**
+data/interim/**
+data/processed/**
+data/reference/**
+
+# Generated reports
+reports/generated/**
+
+# Model artifacts
+models/**
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.venv/
+venv/
+
+# Environment
+.env
+.env.*
+
+# Node
+node_modules/
+.next/
+dist/
+
+# MLflow
+mlruns/
+
+# OS
+.DS_Store
+Thumbs.db

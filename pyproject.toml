@@ -1,0 +1,42 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "building-energy-intelligence"
+version = "0.1.0"
+description = "Building energy forecasting and ML lifecycle platform"
+requires-python = ">=3.11"
+
+dependencies = [
+    "numpy>=1.26,<3",
+    "pandas>=2.2,<3",
+    "pyarrow>=16,<22",
+    "scikit-learn>=1.5,<2",
+    "PyYAML>=6,<7",
+    "joblib>=1.4,<2",
+    "matplotlib>=3.9,<4",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8,<9",
+    "ruff>=0.6,<1",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = [
+    "ml",
+    "ml.*",
+]
+exclude = [
+    "apps*",
+    "data*",
+    "docker*",
+    "models*",
+    "configs*",
+    "reports*",
+    "notebooks*",
+    "tests*",
+]
