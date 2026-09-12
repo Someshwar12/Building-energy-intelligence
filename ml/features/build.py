@@ -20,7 +20,23 @@ def merge_energy_metadata_weather(
         energy["building_id"].astype(str)
     )
 
+    # Normalize BDG2 metadata column names.
     meta = metadata.copy()
+
+    metadata_rename = {
+        "primaryspaceusage": "primary_use",
+        "sqft": "square_feet",
+        "sqm": "floor_area",
+    }
+
+    meta = meta.rename(
+        columns={
+            source: target
+            for source, target in metadata_rename.items()
+            if source in meta.columns
+        }
+    )
+
     meta["building_id"] = (
         meta["building_id"].astype(str)
     )
@@ -50,7 +66,26 @@ def merge_energy_metadata_weather(
         validate="many_to_one",
     )
 
+    # Normalize BDG2 weather column names.
     weather_df = weather.copy()
+
+    weather_rename = {
+        "airTemperature": "air_temperature",
+        "dewTemperature": "dew_temperature",
+        "cloudCoverage": "cloud_coverage",
+        "windSpeed": "wind_speed",
+        "windDirection": "wind_direction",
+        "seaLvlPressure": "sea_level_pressure",
+        "precipDepth1HR": "precip_depth_1_hr",
+    }
+
+    weather_df = weather_df.rename(
+        columns={
+            source: target
+            for source, target in weather_rename.items()
+            if source in weather_df.columns
+        }
+    )
 
     weather_df["timestamp"] = pd.to_datetime(
         weather_df["timestamp"],
