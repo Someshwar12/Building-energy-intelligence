@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from pathlib import Path
 import sys
+from pathlib import Path
 
 import joblib
 import pandas as pd
@@ -9,8 +9,8 @@ import pandas as pd
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from ml.config import phase1_config  # noqa: E402
-from ml.evaluation.split import temporal_split  # noqa: E402
+from ml.config import phase1_config
+from ml.evaluation.split import temporal_split
 
 
 def grouped_comparison(

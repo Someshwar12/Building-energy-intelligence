@@ -1,29 +1,28 @@
 from __future__ import annotations
 
-from pathlib import Path
 import sys
+from pathlib import Path
 
 import pandas as pd
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from ml.config import phase1_config  # noqa: E402
-from ml.ingestion.loaders import (  # noqa: E402
+from ml.config import phase1_config
+from ml.features.build import (
+    build_features,
+    merge_energy_metadata_weather,
+)
+from ml.ingestion.loaders import (
     find_first_existing,
     load_electricity,
     load_metadata,
     load_weather,
 )
-from ml.validation.data_quality import (  # noqa: E402
+from ml.validation.data_quality import (
     add_quality_flags,
     coverage_report,
 )
-from ml.features.build import (  # noqa: E402
-    merge_energy_metadata_weather,
-    build_features,
-)
-
 
 ELECTRICITY_CANDIDATES = [
     "data/raw/bdg2/electricity_cleaned.csv",

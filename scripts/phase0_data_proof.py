@@ -1,21 +1,21 @@
 from __future__ import annotations
 
-from pathlib import Path
 import sys
 import time
+from pathlib import Path
 
 import pandas as pd
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from ml.ingestion.loaders import (  # noqa: E402
+from ml.ingestion.loaders import (
     find_first_existing,
     load_electricity,
     load_metadata,
     load_weather,
 )
-from ml.validation.data_quality import (  # noqa: E402
+from ml.validation.data_quality import (
     add_quality_flags,
     coverage_report,
     required_columns,
@@ -23,7 +23,6 @@ from ml.validation.data_quality import (  # noqa: E402
     validate_energy_values,
     validate_timestamps,
 )
-
 
 ELECTRICITY_CANDIDATES = [
     "data/raw/bdg2/electricity_cleaned.csv",
@@ -61,7 +60,7 @@ def report_dataframe(
     for column in df.columns:
         print(
             f"  {column:<30}"
-            f"{str(df[column].dtype):<15}"
+            f"{df[column].dtype!s:<15}"
         )
 
 
@@ -235,7 +234,7 @@ def main() -> None:
         )
 
         print(
-            f"  {str(flag):<20}"
+            f"  {flag!s:<20}"
             f"{count:>12,}"
             f" ({percentage:>6.2f}%)"
         )

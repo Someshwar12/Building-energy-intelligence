@@ -85,8 +85,10 @@ def validate_duplicate_keys(
         return []
 
     return [
-        f"electricity: {duplicate_count} rows participate in duplicate "
-        "building/timestamp keys"
+        (
+            f"electricity: {duplicate_count} rows participate in duplicate "
+            "building/timestamp keys"
+        )
     ]
 
 

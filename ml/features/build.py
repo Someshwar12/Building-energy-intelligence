@@ -204,7 +204,7 @@ def add_lags_and_rollings(
             past_energy
             .groupby(result["building_id"])
             .transform(
-                lambda series: series.rolling(
+                lambda series, window=window: series.rolling(
                     window=window,
                     min_periods=max(1, window // 2),
                 ).mean()
@@ -218,7 +218,7 @@ def add_lags_and_rollings(
                 past_energy
                 .groupby(result["building_id"])
                 .transform(
-                    lambda series: series.rolling(
+                    lambda series, window=window: series.rolling(
                         window=window,
                         min_periods=max(1, window // 2),
                     ).max()

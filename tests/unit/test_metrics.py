@@ -2,8 +2,8 @@ import numpy as np
 
 from ml.evaluation.metrics import (
     mae,
-    rmse,
     nmae,
+    rmse,
 )
 
 

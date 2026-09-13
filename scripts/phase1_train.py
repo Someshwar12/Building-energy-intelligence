@@ -1,37 +1,36 @@
 from __future__ import annotations
 
-from pathlib import Path
 import sys
+from pathlib import Path
 
 import pandas as pd
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from ml.config import (  # noqa: E402
+from ml.config import (
     load_project_config,
     phase1_config,
 )
-from ml.evaluation.baselines import (  # noqa: E402
+from ml.evaluation.baselines import (
     add_baselines,
 )
-from ml.evaluation.metrics import (  # noqa: E402
+from ml.evaluation.metrics import (
     evaluate,
 )
-from ml.evaluation.split import (  # noqa: E402
+from ml.evaluation.split import (
     temporal_split,
 )
-from ml.training.models import (  # noqa: E402
+from ml.training.models import (
     make_hist_gradient_boosting,
     make_random_forest,
     make_ridge,
 )
-from ml.training.train import (  # noqa: E402
+from ml.training.train import (
     fit_model,
     predict,
     save_artifact,
 )
-
 
 EXCLUDED_FEATURE_COLUMNS = {
     "timestamp",
