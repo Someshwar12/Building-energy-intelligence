@@ -16,7 +16,12 @@ class ModelLoader:
                 f"Model artifact not found: {self.model_path}"
             )
 
-        artifact = joblib.load(self.model_path)
+        try:
+            artifact = joblib.load(self.model_path)
+        except Exception as exc:
+            raise ValueError(
+                f"Unable to load model artifact: {self.model_path}"
+            ) from exc
 
         if not isinstance(artifact, dict):
             raise TypeError("Model artifact must be a dictionary.")
