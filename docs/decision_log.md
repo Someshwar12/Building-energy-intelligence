@@ -1,671 +1,783 @@
 # Decision Log
 
-This document records important engineering, data, machine-learning, and
-architecture decisions made during development of the Building & Energy
-Intelligence Platform.
+This document records important engineering and architectural decisions made during development of the Building & Energy Intelligence Platform.
 
-The purpose of this document is to preserve not only what was decided, but
-also why the decision was made.
+The purpose is to preserve the reasoning behind major choices so that future changes can be evaluated against the original design constraints.
 
 ---
 
 ## Decision 001 — Use BDG2 as the Initial Dataset
 
-**Decision:** Use the BDG2 building energy dataset as the initial development
-dataset.
+**Status:** Accepted
 
-**Reason:**
+### Decision
 
-BDG2 provides hourly building electricity consumption together with building
-metadata and weather observations.
+Use the Building Data Genome Project 2 (BDG2) dataset as the initial source of building energy and contextual data.
 
-This provides the required ingredients for developing an end-to-end building
-energy forecasting and ML lifecycle.
+### Reason
 
-The dataset also supports evaluation across multiple buildings rather than
-testing only a single time series.
+BDG2 provides:
 
----
+- building metadata
+- electricity consumption
+- weather data
+- hourly observations
+- multiple buildings
 
-## Decision 002 — Start With a Controlled Multi-Building Subset
-
-**Decision:** Start development with 12 selected buildings rather than the
-entire available dataset.
-
-**Reason:**
-
-The initial goal is to establish a complete and reproducible pipeline.
-
-A controlled subset keeps local processing and experimentation practical while
-still allowing the system to evaluate performance across multiple buildings.
-
-The architecture should remain capable of expanding to more buildings later.
+This makes it suitable for developing an end-to-end building-energy intelligence system rather than a simple single-table ML exercise.
 
 ---
 
-## Decision 003 — Use Hourly Next-Hour Forecasting
+## Decision 002 — Build the Project Incrementally
 
-**Decision:** Define the initial forecasting problem as predicting the next
-hour's building electricity consumption.
+**Status:** Accepted
 
-**Reason:**
+### Decision
 
-Hourly forecasting provides a concrete operational ML problem while keeping
-the initial system computationally manageable.
+Develop the platform through explicit phases instead of implementing the complete stack at once.
 
-For an observation at time `t`, the target is:
+### Reason
 
-```text
-energy(t + 1)
-````
+The project is intended to demonstrate engineering maturity as well as machine-learning ability.
 
----
+A phased architecture allows each layer to be:
 
-## Decision 004 — Treat the Problem as a Temporal Forecasting Problem
+- implemented
+- tested
+- validated
+- documented
+- committed to Git
 
-**Decision:** Preserve chronological ordering when creating train, validation,
-and test datasets.
+before additional complexity is introduced.
 
-**Reason:**
-
-Energy forecasting is inherently temporal.
-
-A random row-level split could allow future observations to appear in training
-while earlier observations are used for evaluation, producing an unrealistic
-estimate of production performance.
-
-Temporal splitting better represents the way the model will operate after
-deployment.
-
----
-
-## Decision 005 — Prevent Temporal Data Leakage
-
-**Decision:** Historical and rolling features must use only information that
-would have been available before the prediction timestamp.
-
-**Reason:**
-
-The model predicts a future energy value.
-
-Using information from the target interval would allow the model to indirectly
-see the answer during feature construction and would invalidate the evaluation.
-
-Rolling energy features therefore use strictly past observations.
-
----
-
-## Decision 006 — Shift Before Rolling
-
-**Decision:** Shift the energy series by one hour before calculating rolling
-features.
-
-**Implementation concept:**
-
-```text
-past_energy = energy.shift(1)
-```
-
-**Reason:**
-
-This guarantees that rolling statistics for a prediction interval do not
-include the energy value from that same interval.
-
-This rule is important both for offline training and online inference.
-
----
-
-## Decision 007 — Include Historical Energy Lags
-
-**Decision:** Use historical energy lags at 1h, 2h, 3h, 24h, 48h, 72h, and
-168h.
-
-**Reason:**
-
-Building energy consumption has strong short-term, daily, and weekly temporal
-patterns.
-
-These lag features provide the model with multiple historical reference
-points.
-
----
-
-## Decision 008 — Include Rolling Energy Statistics
-
-**Decision:** Include rolling energy means and maximums over short and long
-windows.
-
-**Reason:**
-
-Individual lag values describe specific historical points, while rolling
-statistics describe recent consumption behavior.
-
-The selected windows capture short-term, daily, and weekly patterns.
-
-Current rolling features include:
-
-* 3-hour mean
-* 6-hour mean
-* 24-hour mean
-* 24-hour maximum
-* 168-hour mean
-* 168-hour maximum
-
-All rolling features use strictly past observations.
-
----
-
-## Decision 009 — Include Weather Information
-
-**Decision:** Include available weather observations as model features.
-
-**Reason:**
-
-Building energy demand can vary with environmental conditions.
-
-The dataset provides weather variables that can be aligned with building
-energy observations by site and timestamp.
-
-The initial weather features include:
-
-* air temperature
-* dew temperature
-* cloud coverage
-* wind speed
-* wind direction
-* sea-level pressure
-* precipitation depth
-
-Missing weather values are preserved rather than silently fabricated.
-
----
-
-## Decision 010 — Add Degree-Day Features
-
-**Decision:** Derive heating and cooling degree-hour features using an 18°C
-base temperature.
-
-**Reason:**
-
-Degree-day style features provide a compact representation of heating and
-cooling demand relative to a reference temperature.
-
-The features are:
-
-```text
-heating_degree_hour
-cooling_degree_hour
-```
-
----
-
-## Decision 011 — Include Calendar and Cyclical Features
-
-**Decision:** Include calendar and cyclical representations of time.
-
-**Reason:**
-
-Building energy consumption can exhibit systematic hourly, weekly, and
-seasonal patterns.
-
-The feature set therefore includes:
-
-* hour
-* day of week
-* month
-* day of year
-* weekend indicator
-* hour sine/cosine
-* day-of-year sine/cosine
-
----
-
-## Decision 012 — Evaluate Simple Forecasting Baselines
-
-**Decision:** Compare machine-learning models against simple forecasting
-baselines.
-
-The implemented baselines are:
-
-* persistence
-* previous day
-* previous week
-
-**Reason:**
-
-A more complex ML model should demonstrate measurable value over simple
-forecasting strategies.
-
-This prevents model complexity from being treated as evidence of model
-quality.
-
----
-
-## Decision 013 — Evaluate Multiple ML Model Families
-
-**Decision:** Evaluate Random Forest, HistGradientBoosting, and Ridge
-Regression.
-
-**Reason:**
-
-The initial benchmark should include nonlinear tree-based models and a linear
-reference model.
-
-This provides a useful comparison between different model assumptions without
-introducing unnecessary computational complexity.
-
----
-
-## Decision 014 — Use Multiple Evaluation Metrics
-
-**Decision:** Evaluate models using MAE, RMSE, CVRMSE, NMAE, and macro building
-NMAE.
-
-**Reason:**
-
-A single metric does not fully describe forecasting performance.
-
-MAE provides an interpretable absolute error measure.
-
-RMSE emphasizes larger errors.
-
-CVRMSE provides normalized error relative to the energy scale.
-
-NMAE provides normalized absolute error.
-
-Macro building NMAE prevents larger buildings from completely dominating the
-evaluation.
-
----
-
-## Decision 015 — Evaluate Performance Per Building
-
-**Decision:** Include building-level evaluation in addition to aggregate
-metrics.
-
-**Reason:**
-
-Different buildings can have very different energy consumption scales and
-behavior.
-
-An aggregate metric can hide poor performance on smaller buildings.
-
-Building-level evaluation provides a more balanced view of model behavior.
-
----
-
-## Decision 016 — Persistence Is the Current Forecasting Champion
-
-**Decision:** Select persistence as the current forecasting champion.
-
-**Reason:**
-
-Persistence achieved the strongest final test performance among the evaluated
-forecasting approaches.
-
-Final test performance included:
-
-```text
-MAE:                 8.444619
-NMAE:                0.059274
-Macro Building NMAE: 0.094865
-```
-
-The project therefore does not automatically select the most complex ML model
-as the production champion.
-
----
-
-## Decision 017 — Random Forest Is the Current ML Challenger
-
-**Decision:** Retain Random Forest as the strongest ML challenger.
-
-**Reason:**
-
-Random Forest was the strongest machine-learning model evaluated during Phase
-1.
-
-However, it did not outperform persistence on the final test set.
-
-Therefore it remains an ML challenger rather than being declared the overall
-forecasting champion.
-
----
-
-## Decision 018 — Preserve the Champion/Challenger Distinction
-
-**Decision:** Track the best overall forecasting method separately from the
-best ML candidate.
-
-**Reason:**
-
-This creates an evidence-based model lifecycle.
-
-A model should not be promoted simply because it is newer, more complex, or
-machine-learning based.
-
-Future models must demonstrate improvement against the current champion before
-being considered for promotion.
-
----
-
-## Decision 019 — Keep the Random Forest Artifact for Phase 2
-
-**Decision:** Use the trained Random Forest artifact as the initial ML model
-served by the Phase 2 inference service.
-
-**Reason:**
-
-Although persistence is the current forecasting champion, the project also
-needs a genuine ML model to establish the complete model-serving lifecycle.
-
-Random Forest is the strongest ML candidate from Phase 1 and therefore provides
-a suitable first model artifact for the inference service.
-
-The artifact is:
-
-```text
-models/random_forest_phase1.joblib
-```
-
----
-
-## Decision 020 — Separate Training and Inference
-
-**Decision:** Implement model inference as a standalone FastAPI service.
-
-**Reason:**
-
-The application should not directly depend on the internals of the training
-pipeline or the scikit-learn implementation.
-
-A service boundary allows the ML system to evolve independently from the
-future application backend and frontend.
-
----
-
-## Decision 021 — Separate the ML Service From the Application Backend
-
-**Decision:** Use:
-
-```text
-apps/model_service/
-```
-
-for the ML inference service and reserve:
-
-```text
-apps/api/
-```
-
-for the future Node/Express application backend.
-
-**Reason:**
-
-The two components have different responsibilities.
-
-The ML service handles model inference.
-
-The application backend will eventually handle application-level business
-logic, persistence, authentication, orchestration, and user-facing APIs.
-
-Keeping them separate avoids unnecessary coupling.
-
----
-
-## Decision 022 — Load the Model Once at Startup
-
-**Decision:** Load the model artifact during FastAPI application startup.
-
-**Reason:**
-
-Loading the model for every prediction would introduce unnecessary disk I/O and
-latency.
-
-A service-lifetime model instance provides a simpler and more efficient
-inference path.
-
----
-
-## Decision 023 — Validate the Model Artifact
-
-**Decision:** The model loader validates that the loaded artifact contains the
-expected structure.
-
-Expected components include:
-
-* model name
-* model object
-* feature columns
-* metadata
-
-**Reason:**
-
-A file existing on disk does not guarantee that it is a valid model artifact.
-
-Explicit validation prevents malformed artifacts from being treated as usable
-models.
-
----
-
-## Decision 024 — Normalize Model-Loading Failures
-
-**Decision:** Normalize low-level model artifact loading failures into a
-predictable application-level error.
-
-**Reason:**
-
-Serialization libraries can raise different low-level exceptions for missing,
-corrupt, or incompatible artifacts.
-
-The rest of the application should not depend on those implementation-specific
-exceptions.
-
----
-
-## Decision 025 — Expose Health and Readiness Separately
-
-**Decision:** Provide separate `/health` and `/ready` endpoints.
-
-**Reason:**
-
-A running process is not necessarily a usable ML service.
-
-`/health` confirms that the service process is alive.
-
-`/ready` confirms that the required model has successfully loaded and the
-service is ready to perform inference.
-
-This distinction becomes important for future deployment and orchestration.
-
----
-
-## Decision 026 — Use Explicit Pydantic API Schemas
-
-**Decision:** Use Pydantic models for prediction requests and responses.
-
-**Reason:**
-
-The API needs an explicit contract for:
-
-* building metadata
-* weather values
-* timestamps
-* historical energy
-* prediction responses
-
-Validation at the API boundary prevents malformed data from unnecessarily
-reaching model inference.
-
----
-
-## Decision 027 — Require 168 Hours of Historical Context
-
-**Decision:** Require 168 historical hourly observations for prediction
-requests.
-
-**Reason:**
-
-The current Random Forest feature set contains lag and rolling features that
-extend to 168 hours.
-
-A prediction request containing only the current observation would not contain
-enough information to reconstruct the training feature set.
-
----
-
-## Decision 028 — Validate Historical Timestamp Structure
-
-**Decision:** Historical observations must have:
-
-* unique timestamps
-* chronological ordering
-* consecutive hourly intervals
-* exactly 168 observations immediately preceding the prediction timestamp
-
-**Reason:**
-
-Correct historical alignment is essential for lag and rolling features.
-
-Incorrect timestamp structure could produce valid-looking but incorrect model
-features.
-
----
-
-## Decision 029 — Verify Training/Serving Feature Parity
-
-**Decision:** Maintain a dedicated regression test comparing API feature
-construction against the Phase 1 feature builder.
-
-**Reason:**
-
-Training-serving skew is a major ML engineering failure mode.
-
-The model can appear to work while producing incorrect predictions if the
-inference service constructs features differently from training.
-
-The parity test protects this contract.
-
----
-
-## Decision 030 — Test the Real Model Through the HTTP Boundary
-
-**Decision:** Include an automated test that sends a valid request through the
-actual `/predict` endpoint using the real Phase 1 Random Forest artifact.
-
-**Reason:**
-
-Unit tests using fake models verify individual components but do not prove that
-the actual deployed inference path works.
-
-The real-model endpoint test verifies:
-
-```text
-HTTP Request
-    ↓
-FastAPI
-    ↓
-Validation
-    ↓
-Feature Construction
-    ↓
-Real Model
-    ↓
-Prediction
-    ↓
-HTTP Response
-```
-
----
-
-## Decision 031 — CPU-First Development
-
-**Decision:** Keep the initial system runnable on a normal development laptop
-without requiring a GPU.
-
-**Reason:**
-
-The project should remain reproducible, accessible, and practical during
-development, testing, portfolio demonstration, and local execution.
-
----
-
-## Decision 032 — Delay Infrastructure Until the Core System Is Stable
-
-**Decision:** Do not introduce Docker, CI/CD, MLflow, monitoring, drift
-detection, or automated retraining before the core data and inference
-contracts are established.
-
-**Reason:**
-
-Infrastructure should support a functioning system rather than obscure or
-complicate an unstable foundation.
-
-The project therefore develops the system incrementally.
-
----
-
-## Decision 033 — Use Git Checkpoints at Meaningful Milestones
-
-**Decision:** Commit and push changes at meaningful engineering checkpoints
-rather than after every small modification.
-
-**Reason:**
-
-The Git history should communicate meaningful project milestones while
-avoiding excessive commit noise.
-
-Phase-level checkpoints also provide recovery points during development.
-
----
-
-## Decision 034 — Keep Generated Artifacts Out of Git
-
-**Decision:** Generated datasets, model outputs, reports, caches, virtual
-environments, and generated package metadata should not be committed unless
-they are intentionally versioned project artifacts.
-
-**Reason:**
-
-Generated files can be large, reproducible, or environment-specific.
-
-Keeping them out of the normal source-control path keeps the repository clean
-and focused on source code, configuration, documentation, and intentionally
-tracked artifacts.
-
----
-
-## Decision 035 — Build the Platform Incrementally
-
-**Decision:** Complete and verify each major phase before introducing the next
-major architectural layer.
-
-**Reason:**
-
-The project is intended to demonstrate an actual ML engineering lifecycle,
-not simply a collection of technologies.
-
-Each phase should therefore leave the repository in a working and testable
-state before the next layer is introduced.
-
-The current progression is:
+Current progression:
 
 ```text
 Phase 0
-Data Proof
-    ↓
+Project Foundation
+      ↓
 Phase 1
-Data + ML Baseline
-    ↓
+Data + Features + ML Baseline
+      ↓
 Phase 2
 ML Inference Service
-    ↓
+      ↓
 Phase 3
-Application Backend
-    ↓
+Application Platform
+      ↓
 Phase 4
-Web Dashboard
-    ↓
-Phase 5+
-Infrastructure, Lifecycle, Monitoring,
-Retraining, and Deployment
+MLOps + Model Lifecycle
+````
+
+---
+## Decision 003 — Keep the System CPU-First
+
+**Status:** Accepted
+
+### Decision
+
+The initial platform must run locally on a normal development laptop without requiring a GPU.
+
+### Reason
+
+The project is intended to remain:
+
+* accessible
+* inexpensive
+* reproducible
+* easy to develop locally
+
+The initial ML workload does not require GPU infrastructure.
+
+GPU-dependent technologies will therefore not be introduced unless a future requirement genuinely justifies them.
+
+---
+
+## Decision 004 — Do Not Introduce LLMs or Agents
+
+**Status:** Accepted
+
+### Decision
+
+The core platform will not depend on LLMs, autonomous agents, or transformer models.
+
+### Reason
+
+The project is intended to demonstrate conventional ML, data engineering, inference, application architecture, and MLOps skills.
+
+The central problem is building-energy intelligence rather than adding an LLM merely for demonstration purposes.
+
+---
+
+## Decision 005 — Establish a Persistence Baseline
+
+**Status:** Accepted
+
+### Decision
+
+Use persistence forecasting as the primary benchmark baseline.
+
+### Reason
+
+A machine-learning model should not be considered useful simply because it produces predictions.
+
+It must outperform a meaningful baseline.
+
+For short-horizon energy forecasting, persistence provides a simple and interpretable benchmark.
+
+The baseline therefore remains part of model evaluation even after introducing more complex models.
+
+---
+
+## Decision 006 — Retain Random Forest as the Initial ML Challenger
+
+**Status:** Accepted
+
+### Decision
+
+Random Forest is retained as the initial deployable ML challenger even though persistence performed better in the Phase 1 benchmark.
+
+### Reason
+
+The Phase 1 evaluation showed that persistence was the strongest benchmark.
+
+Random Forest was nevertheless retained because it provides a genuine learned model and establishes the initial model-serving path for the platform.
+
+This distinction is important:
+
+```text
+Production benchmark champion:
+Persistence
+
+Initial learned model:
+Random Forest
+```
+
+The Random Forest model must not be described as the overall Phase 1 performance champion.
+
+---
+
+## Decision 007 — Preserve Feature Parity Between Training and Inference
+
+**Status:** Accepted
+
+### Decision
+
+The feature construction used by the FastAPI inference service must reproduce the feature definitions established during Phase 1.
+
+### Reason
+
+Training-serving skew can occur when training and inference construct features differently.
+
+The inference service therefore reconstructs the required features from the supplied historical context rather than using an unrelated feature definition.
+
+This establishes a controlled boundary:
+
+```text
+Phase 1 Feature Logic
+        ↓
+Training
+
+Same Feature Contract
+        ↓
+Inference
+```
+
+---
+
+## Decision 008 — Require 168 Hours of Historical Context
+
+**Status:** Accepted
+
+### Decision
+
+The current Random Forest inference contract requires exactly 168 consecutive hourly observations preceding the prediction timestamp.
+
+### Reason
+
+The Phase 1 feature set includes historical and rolling information that requires a sufficient historical window.
+
+Requiring the complete context at the API boundary makes the inference contract explicit and prevents silently producing predictions from incomplete history.
+
+---
+
+## Decision 009 — Separate ML Inference from the Application API
+
+**Status:** Accepted
+
+### Decision
+
+Use a dedicated FastAPI ML service behind a Node.js/Express application API.
+
+The intended request path is:
+
+```text
+Next.js
+   ↓
+Express
+   ↓
+FastAPI
+   ↓
+ML Model
+```
+
+### Reason
+
+This separation provides clear responsibilities.
+
+The frontend should not need to know:
+
+* how the model is loaded
+* how features are constructed
+* how the model artifact is serialized
+* how inference is performed
+
+The ML service owns those responsibilities.
+
+The Express API acts as the application boundary.
+
+---
+
+## Decision 010 — Use Next.js for the Web Application
+
+**Status:** Accepted
+
+### Decision
+
+Use Next.js with React and TypeScript for the frontend.
+
+### Reason
+
+The application requires:
+
+* structured pages
+* reusable components
+* typed API interaction
+* responsive UI
+* interactive analytical visualizations
+
+Next.js provides the application framework while React handles the UI layer.
+
+---
+
+## Decision 011 — Use Express as the Application API
+
+**Status:** Accepted
+
+### Decision
+
+Use Node.js with Express as the application-facing API.
+
+### Reason
+
+The application layer needs to coordinate:
+
+* building metadata
+* historical consumption
+* prediction context
+* ML-service communication
+
+Express provides a lightweight service boundary without introducing unnecessary infrastructure at the current stage.
+
+---
+
+## Decision 012 — Keep API, Service, and Repository Responsibilities Separate
+
+**Status:** Accepted
+
+### Decision
+
+The Express application separates:
+
+```text
+Routes
+  ↓
+Services
+  ↓
+Repositories
+```
+
+### Reason
+
+This prevents route handlers from becoming responsible for data access and business/application logic simultaneously.
+
+For example:
+
+```text
+Route
+ ↓
+Prediction Service
+ ↓
+Prediction Repository
+ ↓
+FastAPI
+```
+
+This structure also makes future testing and replacement of individual components easier.
+
+---
+
+## Decision 013 — Use Parquet for the Current Processed Dataset
+
+**Status:** Accepted
+
+### Decision
+
+Use:
+
+```text
+data/processed/phase1_features.parquet
+```
+
+as the canonical Phase 1 processed feature dataset.
+
+### Reason
+
+Parquet provides:
+
+* columnar storage
+* efficient analytical access
+* a compact representation
+* compatibility with Python data workflows
+
+It also keeps the early system simple without requiring a database before one is necessary.
+
+---
+
+## Decision 014 — Do Not Introduce MongoDB in Phase 3
+
+**Status:** Accepted
+
+### Decision
+
+Do not introduce MongoDB or another application database during Phase 3.
+
+### Reason
+
+The current application primarily needs access to a relatively small, static set of building metadata and historical development data.
+
+Introducing a database at this stage would add infrastructure without solving an immediate architectural requirement.
+
+A persistent application database can be introduced later if the platform requires:
+
+* user-specific state
+* operational records
+* prediction history
+* configuration
+* alerts
+* monitoring records
+
+---
+
+## Decision 015 — Export Building Metadata for the Application Layer
+
+**Status:** Accepted
+
+### Decision
+
+Create an application-facing building metadata file:
+
+```text
+apps/api/src/data/buildings.json
+```
+
+### Reason
+
+The application currently needs a stable and simple source for building metadata.
+
+This avoids forcing the application API to perform unnecessary data-processing operations every time the building list is requested.
+
+The export is generated from the selected Phase 1 building metadata.
+
+---
+
+## Decision 016 — Keep Historical Consumption Access Separate from Building Metadata
+
+**Status:** Accepted
+
+### Decision
+
+Building metadata and historical consumption are accessed through separate repositories.
+
+### Reason
+
+They have different access patterns and responsibilities.
+
+```text
+Building Metadata
+      ↓
+Building Repository
+
+Historical Consumption
+      ↓
+Consumption Repository
+```
+
+This separation also leaves room for future storage technologies without requiring changes to the frontend contract.
+
+---
+
+## Decision 017 — Use Typed API Contracts
+
+**Status:** Accepted
+
+### Decision
+
+Use TypeScript types for application API responses and Pydantic schemas for FastAPI request/response validation.
+
+### Reason
+
+The system crosses multiple service boundaries.
+
+Explicit contracts reduce ambiguity and make incompatible changes easier to detect.
+
+The current conceptual contract is:
+
+```text
+React / TypeScript
+        ↓
+Express API
+        ↓
+FastAPI / Pydantic
+        ↓
+ML Model
+```
+
+---
+
+## Decision 018 — Validate the ML Service at Its Boundary
+
+**Status:** Accepted
+
+### Decision
+
+The FastAPI service validates incoming prediction requests before inference.
+
+### Reason
+
+Invalid prediction context should be rejected before it reaches the model.
+
+Validation includes requirements such as:
+
+* valid timestamps
+* non-negative energy values
+* sufficient historical context
+* duplicate detection
+* chronological ordering
+
+This turns assumptions in the model pipeline into explicit API constraints.
+
+---
+
+## Decision 019 — Load the Model at Service Startup
+
+**Status:** Accepted
+
+### Decision
+
+The FastAPI ML service loads the model artifact during application startup.
+
+### Reason
+
+Loading the model for every request would introduce unnecessary overhead.
+
+Startup loading also provides an explicit readiness state.
+
+The service exposes:
+
+```text
+/health
+/ready
+```
+
+so that basic service health and model readiness can be distinguished.
+
+---
+
+## Decision 020 — Keep Model Version Information in the Prediction Response
+
+**Status:** Accepted
+
+### Decision
+
+Prediction responses include:
+
+```text
+model_name
+model_version
+```
+
+### Reason
+
+Predictions should be traceable to the model that produced them.
+
+This becomes increasingly important once the platform introduces:
+
+* model versioning
+* model promotion
+* experiment tracking
+* monitoring
+* retraining
+
+The current model reports the Phase 1 version.
+
+---
+
+## Decision 021 — Treat the Current Forecast as a Demonstration of Inference
+
+**Status:** Accepted
+
+### Decision
+
+The current application demonstrates model inference using historical BDG2 timestamps.
+
+### Reason
+
+The available dataset ends in 2017.
+
+Therefore, the current forecast endpoint demonstrates the complete prediction pipeline but does not represent a live production forecast of an actual current building.
+
+This distinction must be preserved in future documentation and UI wording.
+
+The system should not claim that the current historical prediction is a live future-energy forecast.
+
+---
+
+## Decision 022 — Keep Phase 3 Focused on Application Integration
+
+**Status:** Accepted
+
+### Decision
+
+Phase 3 focuses on connecting:
+
+```text
+ML
++
+API
++
+Web Application
+```
+
+without introducing the complete MLOps stack.
+
+### Reason
+
+The project needs a working end-to-end application before adding lifecycle infrastructure.
+
+Therefore Phase 3 intentionally excludes:
+
+* MLflow
+* model registry
+* automated model promotion
+* drift detection
+* production monitoring
+* automated retraining
+* CI/CD deployment
+* cloud deployment
+* Docker-based production orchestration
+
+These belong to later phases.
+
+---
+
+## Decision 023 — Introduce MLOps After the End-to-End Application Works
+
+**Status:** Accepted
+
+### Decision
+
+MLOps infrastructure will be introduced after the core application workflow is operational.
+
+### Reason
+
+The platform should first establish:
+
+```text
+Data
+ ↓
+Model
+ ↓
+Inference
+ ↓
+API
+ ↓
+UI
+```
+
+before introducing lifecycle automation.
+
+This makes it possible to attach experiment tracking, model management, monitoring, and retraining to a functioning system rather than building infrastructure around an incomplete application.
+
+---
+
+## Decision 024 — Use Champion / Challenger Model Lifecycle
+
+**Status:** Planned
+
+### Decision
+
+Future model lifecycle management will distinguish between a production champion and candidate challengers.
+
+The intended lifecycle is:
+
+```text
+Candidate
+   ↓
+Evaluation
+   ↓
+Challenger
+   ↓
+Promotion Gate
+   ↓
+Champion
+```
+
+### Reason
+
+The Phase 1 results already demonstrated why this distinction matters.
+
+A newer or more complex model should not automatically replace an existing model.
+
+Promotion should depend on predefined evaluation criteria.
+
+---
+
+## Decision 025 — Add Experiment Tracking Before Automated Retraining
+
+**Status:** Planned
+
+### Decision
+
+Experiment tracking and model version management should be established before automated retraining is introduced.
+
+### Reason
+
+Automated retraining without traceability makes it difficult to determine:
+
+* which data produced a model
+* which parameters were used
+* which evaluation results were obtained
+* why a model was promoted
+
+The lifecycle should therefore preserve experiment and model lineage before automation is added.
+
+---
+
+## Decision 026 — Monitoring Will Cover Both Data and Model Performance
+
+**Status:** Planned
+
+### Decision
+
+Future monitoring will consider both input-data behavior and model performance.
+
+The planned architecture includes:
+
+```text
+Input Data
+   ↓
+Data Monitoring
+   ↓
+Prediction
+   ↓
+Performance Monitoring
+```
+
+Potential monitoring areas include:
+
+* feature distribution changes
+* missing-data rates
+* prediction distributions
+* forecast errors
+* data drift
+* model degradation
+
+### Reason
+
+A model can remain technically available while becoming less useful because the underlying data distribution or model performance changes.
+
+---
+
+## Decision 027 — Retraining Must Be Controlled
+
+**Status:** Planned
+
+### Decision
+
+Future retraining will not automatically promote every newly trained model.
+
+The intended process is:
+
+```text
+Monitoring
+   ↓
+Retraining Trigger
+   ↓
+Candidate Training
+   ↓
+Evaluation
+   ↓
+Promotion Gate
+   ↓
+Champion
+```
+
+### Reason
+
+Automated training and automated deployment are separate decisions.
+
+A candidate model must demonstrate that it is suitable before replacing the current champion.
+
+---
+
+# Current Architecture Decision Summary
+
+The decisions made through Phase 3 establish the following architecture:
+
+```text
+                 ┌──────────────────────┐
+                 │      Next.js         │
+                 │       React          │
+                 └──────────┬───────────┘
+                            │
+                            ▼
+                 ┌──────────────────────┐
+                 │      Express         │
+                 │   Application API    │
+                 └──────────┬───────────┘
+                            │
+                            ▼
+                 ┌──────────────────────┐
+                 │       FastAPI        │
+                 │    ML Inference      │
+                 └──────────┬───────────┘
+                            │
+                            ▼
+                 ┌──────────────────────┐
+                 │   Random Forest      │
+                 │    Phase 1 Model     │
+                 └──────────────────────┘
+```
+
+The architecture is intentionally simple at this stage.
+
+Its purpose is to provide a stable foundation for the next engineering layer:
+
+```text
+Experiment Tracking
+        ↓
+Model Registry
+        ↓
+Model Promotion
+        ↓
+Monitoring
+        ↓
+Drift Detection
+        ↓
+Controlled Retraining
+        ↓
+Deployment
+```
+
+Future infrastructure must preserve the existing service boundaries unless there is a clear engineering reason to change them.

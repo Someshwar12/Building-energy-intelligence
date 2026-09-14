@@ -1,533 +1,557 @@
 # Machine Learning
 
-## 1. Purpose
+## Overview
 
-The machine learning layer provides the forecasting capability of the Building & Energy Intelligence Platform.
+The machine-learning component of the Building & Energy Intelligence Platform is designed as a forecasting pipeline for short-horizon building energy consumption.
 
-The primary ML task is:
+The ML workflow currently consists of:
 
-> Predict the next hour's building electricity consumption (`target_next_hour_kwh`) using historical energy consumption, building metadata, weather information, and time-based features.
+```text
+BDG2 Data
+   ↓
+Validation
+   ↓
+Feature Engineering
+   ↓
+Baseline / Model Training
+   ↓
+Evaluation
+   ↓
+Model Artifact
+   ↓
+FastAPI Inference Service
+````
 
-The ML system is designed around reproducibility, temporal correctness, leakage prevention, interpretable evaluation, and a clear distinction between production candidates and experimental models.
+The current implementation establishes the first complete path from a processed dataset to a served ML prediction.
 
 ---
 
-## 2. ML Problem Definition
+# Dataset
 
-### Task
+The initial ML pipeline uses Building Data Genome Project 2 (BDG2).
 
-Supervised regression for one-step-ahead electricity demand forecasting.
+The dataset provides:
 
-### Target
+* building metadata
+* electricity consumption
+* weather information
+* hourly observations
 
-`target_next_hour_kwh`
+The current project uses a selected subset of 12 buildings for the initial development pipeline.
 
-The target represents the electricity consumption at the next hourly timestamp for a building.
+The canonical processed feature dataset is:
+
+```text
+data/processed/phase1_features.parquet
+```
+
+Current dataset size:
+
+```text
+Rows:    210,528
+Columns: 44
+Buildings: 12
+```
+
+---
+
+# Prediction Target
+
+The primary prediction target is:
+
+```text
+target_next_hour_kwh
+```
+
+The task is therefore a one-hour-ahead energy-consumption forecasting problem.
 
 Conceptually:
 
-    X(t) → predict energy(t + 1 hour)
-
-### Prediction unit
-
-One observation corresponds to:
-
-    building_id + timestamp
-
-The model therefore operates on building-level hourly observations.
+```text
+Historical Building Context
+        +
+Weather / Metadata
+        ↓
+Predict next-hour energy consumption
+```
 
 ---
 
-## 3. Input Feature Groups
+# Feature Engineering
 
-The Phase 1 feature dataset contains the following feature groups.
+The Phase 1 feature pipeline constructs features from historical consumption, weather, building metadata, and temporal information.
 
-### Building information
+Feature categories include:
 
-- `building_id`
-- `site_id`
-- `primary_use`
-- `square_feet`
-- `floor_area`
-- `timezone`
+### Historical Energy
 
-These describe the building and its physical/contextual characteristics.
+* lagged energy consumption
+* rolling energy statistics
+* recent consumption patterns
+
+### Rolling Statistics
+
+Examples include:
+
+* rolling means
+* rolling maximums
+
+These provide information about recent building energy behavior.
 
 ### Weather
 
-- `air_temperature`
-- `dew_temperature`
-- `cloud_coverage`
-- `wind_speed`
-- `wind_direction`
-- `sea_level_pressure`
-- `precip_depth_1_hr`
+Weather-related features are included to provide environmental context.
 
-Weather data is joined using:
+### Building Metadata
 
-    site_id + timestamp
+The feature set incorporates building-level information such as:
 
-### Calendar features
+* floor area
+* primary use
+* site information
+* timezone
 
-- `hour`
-- `day_of_week`
-- `month`
-- `day_of_year`
-- `is_weekend`
+### Calendar Features
 
-### Cyclical time features
+Temporal features capture recurring patterns such as:
 
-- `hour_sin`
-- `hour_cos`
-- `day_of_year_sin`
-- `day_of_year_cos`
+* hour
+* day
+* weekday
+* month
+* calendar-related behavior
 
-These represent periodic temporal behavior without treating cyclic variables as purely linear quantities.
+### Degree-Day Features
 
-### Historical energy features
-
-Lag features:
-
-- `energy_lag_1h`
-- `energy_lag_2h`
-- `energy_lag_3h`
-- `energy_lag_24h`
-- `energy_lag_48h`
-- `energy_lag_72h`
-- `energy_lag_168h`
-
-Rolling features:
-
-- `energy_roll_mean_3h`
-- `energy_roll_mean_6h`
-- `energy_roll_mean_24h`
-- `energy_roll_max_24h`
-- `energy_roll_mean_168h`
-- `energy_roll_max_168h`
-
-### Degree-hour features
-
-- `heating_degree_hour`
-- `cooling_degree_hour`
-
-These are derived from air temperature using the Phase 1 feature definition.
+Heating and cooling degree-day style features are included to represent temperature-related building demand.
 
 ---
 
-## 4. Leakage Prevention
+# Feature / Inference Parity
 
-Temporal leakage is treated as a first-class ML concern.
+The inference service must reproduce the feature construction expected by the trained model.
 
-For a prediction at timestamp `t`, all energy-derived features must use observations strictly before `t`.
+The current prediction path is:
 
-The model must never receive:
+```text
+168-hour history
+      ↓
+Inference feature construction
+      ↓
+Feature vector
+      ↓
+Random Forest
+      ↓
+Prediction
+```
 
-    energy(t)
+The inference implementation is intentionally aligned with the Phase 1 feature definitions.
 
-when predicting:
-
-    energy(t + 1)
-
-Rolling features are therefore constructed after shifting the energy series so that the rolling window contains only historical observations.
-
-The feature pipeline also verifies lag alignment against expected historical timestamps.
-
----
-
-## 5. Temporal Dataset Splitting
-
-Random train/test splitting is not used for the forecasting problem.
-
-The dataset is divided chronologically into:
-
-- training period
-- validation period
-- test period
-
-This preserves the real forecasting direction:
-
-    past → future
-
-The test set represents future observations that were not available during model development.
+This prevents the application from creating an incompatible feature representation at prediction time.
 
 ---
 
-## 6. Baseline Models
+# Baseline Models
 
-Simple forecasting baselines are required before evaluating more complex ML models.
+Phase 1 evaluated multiple approaches.
 
-### Persistence baseline
+The primary benchmark was persistence.
 
-The next-hour prediction is the most recently observed energy value.
+Persistence predicts the next hour using the most recent observed energy value.
 
 Conceptually:
 
-    prediction(t + 1) = energy(t)
+```text
+Prediction(t + 1) = Energy(t)
+```
 
-This baseline is especially important because building electricity consumption has strong temporal persistence.
-
-### Previous-day baseline
-
-Uses the corresponding observation from approximately 24 hours earlier.
-
-    prediction(t + 1) = energy(t - 23h)
-
-### Previous-week baseline
-
-Uses the corresponding observation from approximately 168 hours earlier.
-
-    prediction(t + 1) = energy(t - 167h)
-
-The baselines provide a reference point for determining whether ML models actually add predictive value.
+This is intentionally simple but provides an important benchmark for determining whether learned models add value.
 
 ---
 
-## 7. Candidate ML Models
+# Phase 1 Model Comparison
 
-Phase 1 evaluated three supervised regression models.
+The main test-set results were:
 
-### Random Forest
+| Model         | Test NMAE |  Test MAE | Test RMSE | Test CVRMSE | Macro Building NMAE |
+| ------------- | --------: | --------: | --------: | ----------: | ------------------: |
+| Persistence   |  0.059274 |  8.444619 | 23.639729 |  16.593072% |            0.094865 |
+| Random Forest |  0.076385 | 10.873100 | 24.717749 |  17.364619% |            0.137032 |
 
-A tree-based ensemble model capable of learning nonlinear relationships and interactions between:
+Additional Phase 1 experiments included Ridge Regression and HistGradientBoosting.
 
-- historical energy
-- weather
-- calendar variables
-- building characteristics
-
-### HistGradientBoosting
-
-A gradient-boosted tree model evaluated as a second nonlinear challenger.
-
-### Ridge Regression
-
-A regularized linear model used as a simpler reference model.
-
-The purpose of evaluating multiple model families is not to assume that the most complex model will win, but to establish an evidence-based benchmark.
+The key conclusion was that the persistence benchmark outperformed the evaluated learned models on the Phase 1 test evaluation.
 
 ---
 
-## 8. Evaluation Metrics
+# Champion and Challenger
 
-The project uses multiple metrics because a single aggregate metric can hide important building-level behavior.
+The Phase 1 results establish an important distinction.
 
-### MAE
+```text
+Benchmark Champion
+        ↓
+Persistence
 
-Mean Absolute Error:
+Learned Model / Initial Challenger
+        ↓
+Random Forest
+```
 
-    MAE = mean(|y - ŷ|)
+Persistence is therefore the strongest Phase 1 benchmark.
 
-This represents the average absolute prediction error in kWh.
+Random Forest is retained as the first learned model used by the inference service.
 
-### RMSE
-
-Root Mean Squared Error:
-
-    RMSE = sqrt(mean((y - ŷ)^2))
-
-RMSE penalizes larger errors more strongly than MAE.
-
-### CVRMSE
-
-Coefficient of Variation of RMSE:
-
-    CVRMSE = RMSE / mean(actual)
-
-This provides a scale-normalized measure of forecasting error.
-
-### NMAE
-
-Normalized Mean Absolute Error:
-
-    NMAE = MAE / mean(actual)
-
-This allows errors to be compared across buildings with different consumption scales.
-
-### Macro building NMAE
-
-NMAE is calculated independently for each building and then averaged across buildings.
-
-This prevents buildings with very large energy consumption from completely dominating the evaluation.
+The Random Forest model should not be described as the Phase 1 overall performance champion.
 
 ---
 
-## 9. Phase 1 Benchmark Results
+# Random Forest Artifact
 
-The final Phase 1 test results were:
+The current Random Forest artifact is:
 
-    Persistence
-        MAE:  8.444619
-        RMSE: 23.639729
-        CVRMSE: 16.593072%
-        NMAE: 0.059274
-        Macro building NMAE: 0.094865
+```text
+models/random_forest_phase1.joblib
+```
 
-    Random Forest
-        MAE: 10.873100
-        RMSE: 24.717749
-        CVRMSE: 17.364619%
-        NMAE: 0.076385
-        Macro building NMAE: 0.137032
+The artifact contains the information required by the inference service, including:
 
-    HistGradientBoosting
-        MAE: 11.179845
-        RMSE: 24.857629
-        CVRMSE: 17.462887%
-        NMAE: 0.078540
-        Macro building NMAE: 0.373641
+* model name
+* trained model
+* feature columns
+* metadata
 
-    Ridge
-        MAE: 15.060576
-        RMSE: 29.967921
-        CVRMSE: 21.052950%
-        NMAE: 0.105803
-        Macro building NMAE: 4.231032
-
-The previous-day and previous-week baselines performed worse than persistence.
+The model loader validates the expected artifact structure before making the service ready.
 
 ---
 
-## 10. Champion and Challenger
+# Model Version
 
-The benchmark produced an important result:
+The current model reports:
 
-> The persistence baseline outperformed all evaluated ML models on the Phase 1 test set.
+```text
+model_name:
+random_forest
 
-Therefore:
+model_version:
+phase1
+```
 
-    Champion  = Persistence
-    Challenger = Random Forest
+This information is returned with predictions.
 
-Persistence is the current forecasting champion based on the available evidence.
+The explicit version field provides a foundation for future model lifecycle management.
 
-Random Forest remains valuable as a challenger because it represents the first nonlinear ML model and provides a meaningful comparison against the simple baseline.
-
-The project does not promote a model simply because it is an ML model.
-
----
-
-## 11. Error Analysis
-
-Phase 1 included building-level and temporal error analysis comparing Random Forest against persistence.
-
-The analysis showed:
-
-- Persistence was approximately 22.3% better than Random Forest in overall MAE.
-- Random Forest performed better than persistence for one evaluated building.
-- Random Forest performed better at selected hours, including 05:00, 06:00, and 21:00.
-- Persistence remained stronger across the evaluated months.
-- Persistence remained stronger for both weekday and weekend groups.
-
-The results demonstrate that model performance is strongly dependent on building and temporal context.
-
-The analysis should therefore be interpreted as evidence about this dataset and experiment rather than as a universal statement about building-energy forecasting.
+Later phases will extend this concept with proper experiment tracking, model registration, candidate models, and promotion.
 
 ---
 
-## 12. Model Artifact
+# Inference Contract
 
-The Phase 1 Random Forest artifact is stored as:
+The FastAPI inference service currently requires:
 
-    models/random_forest_phase1.joblib
+```text
+Building metadata
++
+Weather context
++
+Target timestamp
++
+168 consecutive hourly historical observations
+```
 
-The artifact contains:
+The historical observations must satisfy the service's validation requirements.
 
-- model name
-- trained model
-- feature column definition
-- metadata
+The service validates:
 
-The artifact is consumed by the Phase 2 inference service.
+* timestamps
+* energy values
+* ordering
+* duplicates
+* required history length
 
-The model artifact is treated as a versioned interface between model development and model serving.
-
----
-
-## 13. Model Serving Contract
-
-The serving layer must not recreate model training logic.
-
-The inference service receives validated request data, reconstructs the required Phase 1 features, and passes the resulting feature frame to the stored model.
-
-The serving boundary is independent of the internal model implementation.
-
-Conceptually:
-
-    API request
-        ↓
-    request validation
-        ↓
-    feature reconstruction
-        ↓
-    feature ordering
-        ↓
-    trained model
-        ↓
-    prediction response
-
-This allows the model implementation to change without changing the external API contract.
+Only after validation does feature construction and inference occur.
 
 ---
 
-## 14. Feature Parity
+# ML Service Architecture
 
-A critical requirement is that features generated during inference match the definitions used during training.
+The trained model is exposed through a standalone FastAPI service.
 
-The inference service therefore reproduces the Phase 1 feature calculations for:
+Location:
 
-- calendar features
-- cyclical features
-- energy lags
-- rolling statistics
-- degree-hour features
+```text
+apps/model_service/
+```
 
-The Phase 2 test suite includes a feature-parity test comparing inference-time feature construction against the Phase 1 feature builder.
+The primary endpoints are:
 
-This prevents silent training/serving skew.
+```text
+GET  /health
+GET  /ready
+POST /predict
+```
 
----
+The prediction flow is:
 
-## 15. Historical Context Requirement
-
-A single current energy observation is not sufficient for the Phase 1 Random Forest model because the model depends on historical lag and rolling features.
-
-The inference request therefore supplies:
-
-    168 hourly observations
-
-immediately preceding the prediction timestamp.
-
-The service validates that:
-
-- timestamps are unique
-- timestamps are chronologically ordered
-- observations are hourly
-- the history is consecutive
-- the history ends immediately before the prediction timestamp
-- the required historical window is complete
-
-This makes the API contract explicit instead of hiding missing historical context inside the service.
+```text
+Prediction Request
+       ↓
+Pydantic Validation
+       ↓
+Historical Context Validation
+       ↓
+Feature Construction
+       ↓
+Random Forest
+       ↓
+Prediction Response
+```
 
 ---
 
-## 16. Missing Values
+# Application Integration
 
-The Phase 1 dataset contains some missing energy and weather observations.
+The ML service is not called directly by the frontend.
 
-Missingness is therefore represented explicitly in the feature dataset and quality indicators are retained.
+The current application architecture is:
 
-The serving layer validates request structure and numeric constraints before inference.
+```text
+Next.js / React
+       ↓
+Node.js / Express
+       ↓
+FastAPI
+       ↓
+Random Forest
+```
 
-The current Phase 2 service does not introduce a new imputation strategy that was not part of the Phase 1 model pipeline.
+The Express prediction service prepares the application-level prediction request and forwards it to FastAPI.
 
-Future ML phases may introduce more sophisticated missing-data handling when justified by experiments.
-
----
-
-## 17. Reproducibility Principles
-
-ML experiments should be reproducible through:
-
-- fixed dataset definitions
-- explicit feature definitions
-- deterministic dataset splitting
-- recorded model configuration
-- saved model artifacts
-- recorded evaluation metrics
-- documented decisions
-- version-controlled source code
-
-Generated datasets, trained artifacts, and reports are not treated as ordinary source-code files in Git.
+This keeps model-specific implementation details inside the ML service.
 
 ---
 
-## 18. Current ML Architecture
+# Current Prediction Example
 
-The current ML flow is:
+A successful inference returns a structured response containing:
 
-    BDG2 raw data
-        ↓
-    validation
-        ↓
-    feature engineering
-        ↓
-    temporal split
-        ↓
-    baseline evaluation
-        ↓
-    model training
-        ↓
-    model evaluation
-        ↓
-    error analysis
-        ↓
-    model artifact
-        ↓
-    FastAPI inference service
+```text
+building_id
+timestamp
+predicted_energy_kwh
+model_name
+model_version
+```
 
-The React frontend, Node/Express application backend, monitoring, retraining, CI/CD, and deployment infrastructure are intentionally outside the current ML scope.
+For example, conceptually:
+
+```json
+{
+  "building_id": "Bear_assembly_Angel",
+  "timestamp": "2017-12-31T23:00:00Z",
+  "predicted_energy_kwh": 253.7778,
+  "model_name": "random_forest",
+  "model_version": "phase1"
+}
+```
 
 ---
 
-## 19. Current Status
+# Error Analysis
 
-### Completed
+Phase 1 included comparison of Random Forest against persistence across different conditions.
 
-- Historical electricity forecasting problem defined
-- BDG2 subset selected
-- Feature dataset created
-- Temporal leakage controls implemented
-- Historical lag features implemented
-- Rolling features implemented
-- Weather features incorporated
-- Calendar and cyclical features implemented
-- Degree-hour features implemented
-- Persistence baseline implemented
-- Previous-day baseline implemented
-- Previous-week baseline implemented
-- Random Forest benchmarked
-- HistGradientBoosting benchmarked
-- Ridge benchmarked
-- Building-level evaluation implemented
-- Error analysis implemented
-- Persistence established as champion
-- Random Forest retained as challenger
-- Random Forest artifact integrated into FastAPI inference service
-- Inference feature parity tested
-- Real HTTP prediction tested
+The analysis showed that Random Forest improved over persistence for some buildings and periods, but persistence remained stronger overall.
 
-### Not yet implemented
+Persistence also remained stronger across the evaluated monthly and weekday/weekend comparisons.
 
-- Experiment tracking system
-- Automated model registry
-- Champion/challenger promotion workflow
-- Production monitoring
-- Data drift detection
-- Prediction drift detection
-- Automated retraining
-- Model performance monitoring in production
-- CI/CD
-- Cloud deployment
-- Advanced forecasting models
+These results reinforce the importance of benchmarking learned models against simple baselines.
 
-These are intentionally deferred to later phases.
+The project therefore avoids claiming that a more complex model is automatically better.
 
 ---
 
-## 20. ML Design Philosophy
+# Important Forecasting Limitation
 
-The project follows an evidence-first ML approach:
+The current BDG2 dataset ends on:
 
-    baseline → experiment → evaluate → compare → analyze → decide
+```text
+2017-12-31
+```
 
-A more sophisticated model is not automatically considered better.
+Therefore, the current application forecast endpoint demonstrates model inference using historical data.
 
-The primary question is:
+It is not a live forecast of present-day building consumption.
 
-> Does the model provide measurable predictive value over a strong, simple baseline?
+The current architecture should be understood as:
 
-For the current Phase 1 dataset, the answer is no for the evaluated Random Forest, HistGradientBoosting, and Ridge models.
+```text
+Historical Dataset
+        ↓
+Historical Context
+        ↓
+Model Inference
+        ↓
+Demonstration Prediction
+```
 
-That result is retained as part of the project's ML evidence rather than hidden in favor of a more impressive-looking model.
+rather than:
 
-The next ML iterations should therefore focus on understanding the forecasting problem and improving the experimental setup before adding unnecessary model complexity.
+```text
+Live Building
+        ↓
+Real-Time Sensors
+        ↓
+Production Forecast
+```
+
+A genuine live forecasting system would require continuously arriving operational data.
+
+---
+
+# Current ML Scope
+
+The completed ML scope includes:
+
+* BDG2 ingestion
+* data validation
+* feature engineering
+* historical feature construction
+* baseline benchmarking
+* model comparison
+* Random Forest training
+* model evaluation
+* model serialization
+* model loading
+* inference validation
+* FastAPI model serving
+* application-level forecast integration
+
+---
+
+# Not Yet Implemented
+
+The following ML/MLOps capabilities are intentionally deferred:
+
+* experiment tracking
+* formal model registry
+* automated model promotion
+* production champion management
+* feature store
+* online feature serving
+* data drift monitoring
+* prediction monitoring
+* automated performance monitoring
+* automated retraining
+* retraining triggers
+* CI/CD model deployment
+* cloud deployment
+
+These belong to later project phases.
+
+---
+
+# Future ML Lifecycle
+
+The intended future lifecycle is:
+
+```text
+Data
+ ↓
+Feature Engineering
+ ↓
+Experiment
+ ↓
+Training
+ ↓
+Evaluation
+ ↓
+Candidate Model
+ ↓
+Registry
+ ↓
+Promotion Gate
+ ↓
+Champion
+ ↓
+Inference
+ ↓
+Monitoring
+ ↓
+Drift / Performance Detection
+ ↓
+Retraining
+ ↓
+Candidate Model
+```
+
+The important design principle is that retraining and promotion are controlled processes.
+
+A newly trained model should not automatically replace the current production model simply because it is newer.
+
+---
+
+# Future Model Evaluation
+
+Future model promotion should consider more than a single aggregate metric.
+
+Potential evaluation dimensions include:
+
+* overall forecasting error
+* building-level performance
+* temporal performance
+* comparison against persistence
+* stability across evaluation periods
+* degradation or improvement relative to the current champion
+
+The exact promotion criteria will be defined during the MLOps/model-lifecycle phase.
+
+---
+
+# Current ML Architecture Summary
+
+```text
+                 ┌─────────────────────┐
+                 │     BDG2 Dataset    │
+                 └──────────┬──────────┘
+                            │
+                            ▼
+                 ┌─────────────────────┐
+                 │ Feature Engineering │
+                 └──────────┬──────────┘
+                            │
+                            ▼
+                 ┌─────────────────────┐
+                 │ Model Evaluation    │
+                 │                     │
+                 │ Persistence         │
+                 │ Random Forest       │
+                 │ Ridge               │
+                 │ HistGradientBoosting│
+                 └──────────┬──────────┘
+                            │
+                            ▼
+                 ┌─────────────────────┐
+                 │ Random Forest       │
+                 │ Phase 1 Artifact    │
+                 └──────────┬──────────┘
+                            │
+                            ▼
+                 ┌─────────────────────┐
+                 │ FastAPI Inference   │
+                 │ Service             │
+                 └──────────┬──────────┘
+                            │
+                            ▼
+                 ┌─────────────────────┐
+                 │ Express Application  │
+                 │ API                 │
+                 └──────────┬──────────┘
+                            │
+                            ▼
+                 ┌─────────────────────┐
+                 │ Next.js Application │
+                 └─────────────────────┘
+```
+
+The current ML layer is therefore complete enough to support an end-to-end application while remaining deliberately separate from the MLOps infrastructure planned for subsequent phases.

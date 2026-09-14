@@ -1,600 +1,724 @@
 # Project Phases
 
-## 1. Purpose
+This project is developed as a staged machine-learning and software engineering system.
 
-This document defines the development roadmap for the Building & Energy Intelligence Platform.
-
-The project is intentionally developed in controlled phases so that each layer is implemented, tested, documented, and validated before the next layer is introduced.
+Each phase adds a distinct layer to the platform while preserving the interfaces and decisions established in previous phases.
 
 The overall progression is:
 
-    Data
-      ↓
-    Features
-      ↓
-    Machine Learning
-      ↓
-    Inference API
-      ↓
-    Application Backend
-      ↓
-    Frontend
-      ↓
-    Containerization
-      ↓
-    Experiment Tracking
-      ↓
-    Model Lifecycle
-      ↓
-    Monitoring
-      ↓
-    Automated Retraining
-      ↓
-    Deployment
-
-The phases are deliberately separated to avoid building infrastructure before the underlying ML system is reliable.
+```text
+Data
+  ↓
+Feature Engineering
+  ↓
+Machine Learning
+  ↓
+ML Inference Service
+  ↓
+Application Platform
+  ↓
+MLOps & Model Lifecycle
+  ↓
+Monitoring & Controlled Retraining
+  ↓
+Deployment
+````
 
 ---
 
-## 2. Phase 0 — Data Proof and Dataset Understanding
+# Phase 0 — Project Foundation
 
-### Objective
+## Status
 
-Establish that the selected BDG2 data is understood, accessible, structurally valid, and suitable for the forecasting problem.
+**Complete**
 
-### Scope
+## Objective
 
-- Inspect raw electricity data
-- Inspect building metadata
-- Inspect weather data
-- Understand timestamps and granularity
-- Identify buildings and sites
-- Check missingness
-- Check duplicate keys
-- Verify hourly structure
-- Verify relationships between electricity, metadata, and weather
-- Produce an initial data-quality report
+Establish the project repository, development environment, data source, project structure, and initial data understanding.
 
-### Outcome
+## Main Work
 
-A validated understanding of the raw dataset and a reproducible data-ingestion starting point.
+* Project repository created
+* Python virtual environment established
+* Git and GitHub workflow established
+* BDG2 dataset acquired
+* Raw data organized
+* Initial dataset inspection performed
+* Project directory structure established
+* Development conventions established
 
-### Status
+## Output
 
-Completed.
+A reproducible project foundation for the subsequent ML and application phases.
 
 ---
 
-## 3. Phase 1 — Feature Engineering and ML Benchmark
+# Phase 1 — Data, Features & ML Baseline
 
-### Objective
+## Status
 
-Create the canonical forecasting dataset and establish an evidence-based ML benchmark.
+**Complete**
 
-### Scope
+## Objective
 
-- Build the canonical feature dataset
-- Join electricity, metadata, and weather
-- Create calendar features
-- Create cyclical time features
-- Create historical lag features
-- Create rolling statistics
-- Create heating/cooling degree-hour features
-- Create the next-hour target
-- Validate temporal alignment
-- Prevent target leakage
-- Perform chronological train/validation/test splitting
-- Evaluate persistence baseline
-- Evaluate previous-day baseline
-- Evaluate previous-week baseline
-- Train Random Forest
-- Train HistGradientBoosting
-- Train Ridge
-- Compare models using multiple metrics
-- Perform building-level error analysis
-- Save the Random Forest artifact
+Build the first reproducible energy forecasting pipeline using the BDG2 dataset and establish a defensible ML benchmark.
 
-### Key Decision
+## Dataset
 
-The persistence baseline outperformed the evaluated ML models.
+The project uses the Building Data Genome Project 2 (BDG2) dataset.
 
-Therefore:
+The selected working subset contains:
 
-    Champion  = Persistence
-    Challenger = Random Forest
+* 12 buildings
+* hourly observations
+* electricity consumption
+* building metadata
+* weather information
 
-Random Forest is retained as the ML challenger and Phase 2 serving artifact.
+The canonical processed dataset is:
 
-### Status
+```text
+data/processed/phase1_features.parquet
+```
 
-Completed.
+## Data Pipeline
+
+The phase established:
+
+```text
+Raw BDG2 Data
+      ↓
+Data Validation
+      ↓
+Cleaning / Alignment
+      ↓
+Feature Engineering
+      ↓
+Processed Feature Dataset
+```
+
+## Feature Engineering
+
+Features include:
+
+* historical energy values
+* lag features
+* rolling mean features
+* rolling maximum features
+* weather variables
+* building metadata
+* calendar features
+* heating degree hours
+* cooling degree hours
+
+The prediction target is:
+
+```text
+target_next_hour_kwh
+```
+
+representing next-hour electricity consumption.
+
+## Models Evaluated
+
+The initial benchmark included:
+
+* Persistence baseline
+* Ridge Regression
+* Random Forest
+* HistGradientBoosting
+
+## Model Selection
+
+The persistence model established the strongest baseline on the selected evaluation setup.
+
+Random Forest was retained as the ML challenger and as the first deployable ML model for the subsequent inference-service phase.
+
+The project therefore deliberately distinguishes:
+
+```text
+Production baseline:
+Persistence
+
+ML challenger:
+Random Forest
+```
+
+The Random Forest model artifact is:
+
+```text
+models/random_forest_phase1.joblib
+```
+
+## Phase 1 Outcome
+
+Phase 1 established:
+
+* reproducible data preparation
+* feature engineering
+* train/test evaluation
+* baseline comparison
+* model error analysis
+* a versioned ML artifact
+* the initial ML input/output contract
 
 ---
 
-## 4. Phase 2 — ML Inference Service
+# Phase 2 — ML Inference Service
 
-### Objective
+## Status
 
-Expose the Phase 1 ML model through a standalone production-style inference API.
+**Complete**
 
-### Scope
+## Objective
 
-- Create standalone FastAPI service
-- Define request schemas
-- Define response schemas
-- Validate incoming data
-- Validate historical context
-- Reconstruct model features
-- Maintain feature parity with Phase 1
-- Load model artifact once at startup
-- Validate model artifact structure
-- Run inference
-- Return structured predictions
-- Add health endpoint
-- Add readiness endpoint
-- Add structured logging
-- Expose OpenAPI documentation
-- Add unit and integration tests
-- Test real HTTP inference
+Turn the Phase 1 Random Forest model into a standalone, validated inference service.
 
-### Architecture Boundary
+## Architecture
 
-The ML service is independent from the future application backend.
+```text
+Client
+  ↓
+FastAPI
+  ↓
+Request Validation
+  ↓
+Feature Construction
+  ↓
+Random Forest Model
+  ↓
+Prediction Response
+```
 
-Current:
+## Main Work
 
-    Client
-      ↓
-    FastAPI ML Service
-      ↓
-    Random Forest
+* FastAPI inference service created
+* Model loading implemented
+* Model artifact validation implemented
+* Request schemas implemented
+* Prediction response schema implemented
+* Feature parity with Phase 1 maintained
+* 168-hour historical context requirement enforced
+* Health endpoint implemented
+* Readiness endpoint implemented
+* Prediction endpoint implemented
+* Structured error handling implemented
+* Logging implemented
+* Unit tests implemented
 
-Future:
+## Service
 
-    React
-      ↓
-    Node/Express API
-      ↓
-    FastAPI ML Service
-      ↓
-    Model
+The service is located at:
 
-The Node/Express backend is intentionally not implemented in this phase.
+```text
+apps/model_service/
+```
 
-### Status
+The main inference endpoint is:
 
-Completed.
+```text
+POST /predict
+```
 
----
+## Prediction Contract
 
-## 5. Phase 3 — Application Backend
+The inference service requires the historical context necessary to reproduce the Phase 1 feature construction.
 
-### Objective
+The prediction workflow therefore uses:
 
-Introduce the application-facing backend that separates product/application concerns from ML inference.
-
-### Planned scope
-
-- Node.js / Express backend
-- Application API routes
-- Request orchestration
-- Building and metadata endpoints
-- Prediction request orchestration
-- Communication with FastAPI ML service
-- API-level validation
-- Error handling
-- Configuration management
-- Separation between application API and ML API
-- Backend tests
-
-### Intended boundary
-
-    React
-      ↓
-    Node/Express
-      ↓
-    FastAPI
-      ↓
-    ML model
-
-The frontend should not directly depend on model internals.
-
-### Status
-
-Not started.
-
----
-
-## 6. Phase 4 — Web Dashboard
-
-### Objective
-
-Build the user-facing interface for exploring building energy behavior and predictions.
-
-### Planned scope
-
-- React
-- Next.js application
-- Building selection
-- Energy history visualization
-- Forecast visualization
-- Building metadata
-- Weather context
-- Prediction results
-- API integration
-- Loading states
-- Error states
-- Responsive UI
-- Basic dashboard-level testing
-
-### Planned user flow
-
-    Select building
+```text
+168 hours of historical observations
+        +
+building metadata
+        +
+weather context
+        +
+target timestamp
         ↓
-    Inspect historical energy
+Phase 1 feature construction
         ↓
-    Request forecast
+Random Forest inference
+```
+
+## Validation
+
+Phase 2 established a tested ML service boundary.
+
+The service was validated through:
+
+* unit tests
+* request validation tests
+* model-loading tests
+* inference tests
+* real API prediction verification
+* Ruff validation
+
+## Phase 2 Outcome
+
+The project progressed from:
+
+```text
+ML experiment
+```
+
+to:
+
+```text
+Standalone ML inference service
+```
+
+This created the service boundary required by the application layer.
+
+---
+
+# Phase 3 — Application Platform
+
+## Status
+
+**Complete**
+
+## Objective
+
+Build a functional web application around the existing ML inference service.
+
+The objective was to create a real application workflow rather than exposing the ML service directly to users.
+
+## Architecture
+
+```text
+Next.js / React
+      ↓
+Node.js / Express
+      ↓
+FastAPI ML Service
+      ↓
+Phase 1 Random Forest Model
+```
+
+## Frontend
+
+The frontend was implemented using:
+
+* Next.js
+* React
+* TypeScript
+* Tailwind CSS
+* Recharts
+
+The frontend provides:
+
+* application overview
+* building listing
+* building detail pages
+* building metadata
+* historical consumption visualization
+* forecast display
+* loading states
+* empty states
+* error states
+* responsive layouts
+
+## Application API
+
+A Node.js/Express application API was introduced.
+
+Its responsibilities include:
+
+* building discovery
+* building metadata retrieval
+* historical consumption retrieval
+* prediction context preparation
+* communication with the ML service
+* application-level error handling
+
+The API separates application concerns from ML inference concerns.
+
+## Historical Consumption
+
+The application reads the canonical Phase 1 feature dataset and exposes building-level historical consumption through the application API.
+
+The frontend renders the resulting observations using a Recharts-based consumption chart.
+
+## Forecast Integration
+
+The application connects the frontend to the Phase 2 ML inference service.
+
+The complete flow is:
+
+```text
+Building Detail Page
         ↓
-    View predicted next-hour consumption
+Next.js API Client
         ↓
-    Compare prediction with historical behavior
-
-### Status
-
-Not started.
-
----
-
-## 7. Phase 5 — Containerization and Local System Integration
-
-### Objective
-
-Make the complete application reproducible as a multi-service local system.
-
-### Planned scope
-
-- Dockerfiles
-- Docker Compose
-- React/web service
-- Node/Express API service
-- FastAPI ML service
-- Environment configuration
-- Service-to-service networking
-- Health checks
-- Reproducible local startup
-- Container-level integration testing
-
-### Target architecture
-
-    Browser
-       ↓
-    Web container
-       ↓
-    API container
-       ↓
-    ML service container
-       ↓
-    Model artifact
-
-### Status
-
-Not started.
-
----
-
-## 8. Phase 6 — Experiment Tracking
-
-### Objective
-
-Make ML experiments reproducible and comparable beyond manually recorded results.
-
-### Planned scope
-
-- Experiment tracking
-- Parameter logging
-- Metric logging
-- Dataset/version references
-- Model artifact tracking
-- Run comparison
-- Experiment metadata
-- Reproducible training configuration
-
-A tracking system such as MLflow may be introduced at this stage.
-
-The exact tool should be selected based on the requirements and local complexity at implementation time.
-
-### Status
-
-Not started.
-
----
-
-## 9. Phase 7 — Model Registry and Lifecycle
-
-### Objective
-
-Introduce controlled model versioning and promotion.
-
-### Planned scope
-
-- Model versions
-- Model metadata
-- Model registry
-- Candidate models
-- Champion model
-- Challenger model
-- Evaluation gates
-- Promotion rules
-- Rollback capability
-- Production model selection
-
-The system should make model promotion an explicit decision rather than automatically replacing the current model.
-
-### Conceptual lifecycle
-
-    Training
-       ↓
-    Evaluation
-       ↓
-    Candidate
-       ↓
-    Validation gate
-       ↓
-    Challenger
-       ↓
-    Promotion decision
-       ↓
-    Champion
-
-### Status
-
-Not started.
-
----
-
-## 10. Phase 8 — Production Monitoring
-
-### Objective
-
-Observe the behavior of the deployed ML system over time.
-
-### Planned scope
-
-### Service monitoring
-
-- Request counts
-- Latency
-- Error rates
-- Health status
-- Readiness status
-
-### Data monitoring
-
-- Missing values
-- Invalid values
-- Feature distributions
-- Input volume
-- Data-quality violations
-
-### Prediction monitoring
-
-- Prediction distribution
-- Prediction volume
-- Building-level prediction behavior
-- Unexpected prediction changes
-
-### Performance monitoring
-
-When actual future energy becomes available:
-
-- MAE
-- RMSE
-- NMAE
-- Building-level performance
-- Performance by time period
-
-### Status
-
-Not started.
-
----
-
-## 11. Phase 9 — Drift Detection
-
-### Objective
-
-Detect when production data differs materially from the data used during model development.
-
-### Planned scope
-
-- Feature distribution monitoring
-- Data-quality drift
-- Prediction drift
-- Building-level drift
-- Weather distribution changes
-- Seasonal changes
-- Threshold-based alerts
-- Drift reports
-
-Drift detection should not automatically imply that retraining is necessary.
-
-A detected distribution change is an investigation signal, not proof that the model has failed.
-
-### Status
-
-Not started.
-
----
-
-## 12. Phase 10 — Controlled Retraining
-
-### Objective
-
-Create a safe model improvement loop based on production evidence.
-
-### Planned scope
-
-- Collect validated production observations
-- Construct updated training data
-- Re-run feature pipeline
-- Train candidate models
-- Evaluate against the current champion
-- Compare against persistence
-- Perform regression checks
-- Register candidate artifact
-- Apply promotion criteria
-- Promote only when evaluation requirements are satisfied
-
-### Intended loop
-
-    Production data
+Express Forecast Route
         ↓
-    Validation
+Prediction Context
         ↓
-    Retraining
+FastAPI /predict
         ↓
-    Evaluation
+Random Forest
         ↓
-    Champion comparison
+Forecast Response
         ↓
-    Promotion gate
+Express
         ↓
-    New champion or rejection
+Next.js Forecast UI
+```
 
-Retraining must not automatically replace the production model merely because new data exists.
+## Building-Level Workflow
 
-### Status
+The building detail page combines:
 
-Not started.
+```text
+Consumption Analysis
+        +
+Next-hour Forecast
+        +
+Building Profile
+```
+
+The consumption and forecast views are presented together because they form the primary analytical workflow.
+
+## Validation
+
+Phase 3 passed:
+
+* Python test suite
+* Node API type checking
+* Node API production build
+* Next.js linting
+* Next.js production build
+* end-to-end prediction verification
+
+## Scope Boundary
+
+Phase 3 intentionally does not introduce:
+
+* MongoDB
+* Docker
+* MLflow
+* experiment tracking
+* model registry
+* model promotion
+* drift monitoring
+* automated retraining
+* CI/CD
+* cloud deployment
+
+These capabilities are reserved for later phases.
+
+## Phase 3 Outcome
+
+The project now has a functional application platform:
+
+```text
+Web Application
+      ↓
+Application API
+      ↓
+ML Inference Service
+      ↓
+Machine Learning Model
+```
 
 ---
 
-## 13. Phase 11 — CI/CD and Deployment
+# Phase 4 — MLOps & Model Lifecycle
 
-### Objective
+## Status
 
-Automate software validation and prepare the platform for deployment.
+**Next**
 
-### Planned scope
+## Objective
 
-- GitHub Actions
-- Automated linting
-- Automated tests
-- Build verification
-- Container image validation
-- Integration tests
-- Model artifact validation
-- Deployment workflow
-- Environment-specific configuration
-- Production deployment
+Introduce reproducible experiment tracking and a controlled model lifecycle.
 
-CI/CD should be introduced after the application and ML architecture are sufficiently stable.
+The goal is to move from:
 
-### Status
+```text
+A trained model artifact
+```
 
-Not started.
+to:
 
----
+```text
+A managed model lifecycle
+```
 
-## 14. Phase 12 — Advanced ML
+## Planned Work
 
-### Objective
+### Experiment Tracking
 
-Improve forecasting capability only after the complete system is measurable and operational.
+Track:
 
-### Potential scope
+* experiment configuration
+* dataset version
+* feature configuration
+* model parameters
+* evaluation metrics
+* training timestamp
+* model artifact references
 
-- Stronger feature engineering
-- More sophisticated forecasting models
-- Building-specific models
-- Global models across buildings
-- Multi-step forecasting
-- Quantile/probabilistic forecasting
-- Better handling of missing observations
-- Hyperparameter optimization
-- Model ensembles
-- Forecast uncertainty
-- Additional external variables
+### Model Registry
 
-Advanced ML should be justified by measured weaknesses in the existing system.
+Introduce model versioning and lifecycle states.
 
-The project should not introduce complexity merely for technological novelty.
+The intended concept is:
 
-### Status
+```text
+Experiment
+    ↓
+Candidate Model
+    ↓
+Evaluation
+    ↓
+Registered Model
+    ↓
+Champion / Challenger
+```
 
-Not started.
+### Evaluation Gates
 
----
+A candidate model should not automatically become the production model.
 
-## 15. Phase Completion Rule
+Evaluation should compare it against the existing champion using predefined metrics and validation criteria.
 
-Each phase follows the same development cycle:
+The system should preserve the distinction between:
 
-    Define
-      ↓
-    Implement
-      ↓
-    Test
-      ↓
-    Inspect
-      ↓
-    Document
-      ↓
-    Git commit
-      ↓
-    Git push
-      ↓
-    Proceed to next phase
+```text
+Candidate
+Champion
+Challenger
+```
 
-A phase is considered complete only when its intended functionality has been validated.
+### Model Promotion
 
----
+Model promotion should be controlled and auditable.
 
-## 16. Scope Control
+A promotion workflow should record:
 
-The project deliberately avoids implementing all infrastructure simultaneously.
+* model version
+* evaluation metrics
+* promotion decision
+* timestamp
+* previous champion
+* new champion
 
-The following are explicitly deferred until their corresponding phases:
+## Phase 4 Outcome
 
-- Node/Express → Phase 3
-- React/Next.js → Phase 4
-- Docker → Phase 5
-- Experiment tracking → Phase 6
-- Model registry → Phase 7
-- Monitoring → Phase 8
-- Drift detection → Phase 9
-- Retraining → Phase 10
-- CI/CD → Phase 11
-- Advanced ML → Phase 12
-
-This prevents premature infrastructure complexity and keeps each development checkpoint independently testable.
+The project should gain a reproducible and traceable model lifecycle.
 
 ---
 
-## 17. Current Position
+# Phase 5 — Monitoring & Observability
 
-Completed:
+## Status
 
-    Phase 0 ✓
-    Phase 1 ✓
-    Phase 2 ✓
+**Planned**
 
-Current architecture:
+## Objective
 
-    BDG2
-      ↓
-    Validation
-      ↓
-    Feature Engineering
-      ↓
-    ML Benchmark
-      ↓
-    Random Forest Artifact
-      ↓
-    FastAPI Inference Service
+Monitor the behavior of the deployed ML system after inference.
 
-Next:
+Monitoring will cover both the software system and the ML system.
 
-    Phase 3 — Application Backend
+## Planned Monitoring Areas
 
-The project is therefore transitioning from the validated ML/inference foundation into the application architecture layer.
+### Data Quality
+
+Monitor:
+
+* missing values
+* invalid values
+* unexpected ranges
+* schema changes
+* timestamp continuity
+* feature availability
+
+### Data Drift
+
+Monitor changes in feature distributions between historical/training data and incoming inference data.
+
+Potential areas include:
+
+* energy distributions
+* weather variables
+* calendar-related distributions
+* building-level input distributions
+
+### Prediction Performance
+
+When actual future observations become available, compare:
+
+```text
+Predicted Energy
+        vs.
+Actual Energy
+```
+
+and track metrics over time.
+
+### Service Health
+
+Monitor:
+
+* prediction latency
+* request volume
+* error rate
+* service availability
+* model loading status
+
+## Planned Dashboard Information
+
+The application can eventually expose operational ML information such as:
+
+* active model version
+* model status
+* prediction latency
+* prediction error rate
+* data freshness
+* drift status
+* last successful inference
+* retraining status
+
+## Phase 5 Outcome
+
+The project should become observable rather than simply operational.
+
+---
+
+# Phase 6 — Controlled Retraining
+
+## Status
+
+**Planned**
+
+## Objective
+
+Introduce a controlled process for updating models when new data becomes available or model performance deteriorates.
+
+## Planned Workflow
+
+```text
+New Data
+   ↓
+Data Validation
+   ↓
+Data Quality Checks
+   ↓
+Feature Generation
+   ↓
+Training
+   ↓
+Evaluation
+   ↓
+Compare Against Champion
+   ↓
+Promotion Decision
+```
+
+Retraining should not automatically replace the existing production model without evaluation.
+
+## Planned Controls
+
+* reproducible training configuration
+* dataset tracking
+* experiment tracking
+* candidate model registration
+* evaluation gates
+* promotion rules
+* rollback capability
+
+## Phase 6 Outcome
+
+The ML system gains a controlled model update lifecycle.
+
+---
+
+# Phase 7 — Containerization & Deployment
+
+## Status
+
+**Planned**
+
+## Objective
+
+Package the application and ML services into reproducible deployable units.
+
+## Planned Work
+
+* Dockerize frontend
+* Dockerize application API
+* Dockerize ML service
+* establish service configuration
+* establish environment-specific configuration
+* compose local services
+* introduce deployment configuration
+* establish CI/CD pipeline
+* deploy the application
+
+## Target Architecture
+
+```text
+                    ┌──────────────────┐
+                    │    Web Client    │
+                    └────────┬─────────┘
+                             ↓
+                    ┌──────────────────┐
+                    │   Web Frontend   │
+                    └────────┬─────────┘
+                             ↓
+                    ┌──────────────────┐
+                    │ Application API  │
+                    └────────┬─────────┘
+                             ↓
+                    ┌──────────────────┐
+                    │   ML Service     │
+                    └────────┬─────────┘
+                             ↓
+                    ┌──────────────────┐
+                    │  Model Registry  │
+                    └──────────────────┘
+```
+
+## Phase 7 Outcome
+
+The system becomes reproducibly deployable.
+
+---
+
+# Final Project Progression
+
+The intended progression of the project is:
+
+```text
+PHASE 0
+Project Foundation
+        ↓
+PHASE 1
+Data + Features + ML Baseline
+        ↓
+PHASE 2
+ML Inference Service
+        ↓
+PHASE 3
+Application Platform
+        ↓
+PHASE 4
+MLOps + Model Lifecycle
+        ↓
+PHASE 5
+Monitoring + Observability
+        ↓
+PHASE 6
+Controlled Retraining
+        ↓
+PHASE 7
+Containerization + Deployment
+```
+
+The key engineering principle is that each phase builds on the previous one without prematurely introducing infrastructure that is not yet required.
+
+At the completion of Phase 3, the project has progressed from a data and ML pipeline into a functional end-to-end application.
+
+The next major engineering step is therefore **Phase 4 — MLOps and Model Lifecycle Engineering**.

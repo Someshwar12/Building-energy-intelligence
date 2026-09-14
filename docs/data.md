@@ -1,72 +1,68 @@
 # Data
 
-## Dataset
+## Overview
 
-The project currently uses the BDG2 building energy dataset as its primary
-development dataset.
+The Building & Energy Intelligence Platform uses the Building Data Genome Project 2 (BDG2) as its initial data source.
 
-The dataset provides hourly building electricity consumption together with
-building metadata and weather observations.
+The data pipeline is designed to transform raw building, electricity, weather, and metadata sources into a validated feature dataset that can be used consistently by both model training and inference.
 
-The current Phase 1 working subset contains 12 selected buildings.
-
-## Source Data
-
-The raw BDG2 data used by the project contains three primary data sources:
-
-### Electricity
-
-Hourly building electricity consumption.
-
-The electricity data is used as the primary time-series signal and prediction
-target source.
-
-### Building Metadata
-
-Building-level information including:
-
-- building ID
-- site ID
-- primary space usage
-- square footage
-- floor area
-- timezone
-
-### Weather
-
-Hourly weather observations including:
-
-- air temperature
-- dew temperature
-- cloud coverage
-- precipitation depth
-- sea-level pressure
-- wind direction
-- wind speed
-
-## Raw Data Location
-
-Raw BDG2 files are stored under:
+The current pipeline is:
 
 ```text
-data/raw/bdg2/
+Raw BDG2 Data
+      ↓
+Data Validation
+      ↓
+Cleaning / Alignment
+      ↓
+Feature Engineering
+      ↓
+Processed Feature Dataset
+      ↓
+ML Training / Evaluation
+      ↓
+ML Inference
 ````
 
-The current raw files are:
+---
 
-```text
-electricity_cleaned.csv
-metadata.csv
-weather.csv
+# Source Dataset
+
+The initial source is the Building Data Genome Project 2 (BDG2).
+
+The dataset contains building-level information and hourly energy observations together with contextual information such as weather and metadata.
+
+The project currently uses a selected subset of 12 buildings for development and validation.
+
+---
+
+# Raw Data Layout
+
+The raw BDG2 files are stored under:
+
+```text id="8b8q9x"
+data/raw/bdg2/
 ```
 
-Raw data is kept separate from generated processed datasets.
+The main source files are:
 
-## Selected Buildings
+```text id="l9j7zs"
+data/raw/bdg2/electricity_cleaned.csv
+data/raw/bdg2/metadata.csv
+data/raw/bdg2/weather.csv
+```
 
-The current Phase 1 subset contains 12 buildings:
+These files remain the source layer.
 
-```text
+They are not modified directly by downstream application or model code.
+
+---
+
+# Selected Buildings
+
+The current development dataset contains 12 selected buildings:
+
+```text id="h4y8az"
 Bear_assembly_Angel
 Bear_assembly_Beatrice
 Bear_assembly_Danial
@@ -81,364 +77,519 @@ Bear_education_Alvaro
 Bear_education_Arnold
 ```
 
-The subset provides multiple buildings for evaluating whether a model
-generalizes across different buildings rather than only fitting one building.
+The selected subset provides a manageable development scope while preserving multiple buildings and building characteristics.
 
-## Dataset Dimensions
+---
+
+# Initial Data Audit
+
+The initial Phase 1 audit established the following:
+
+| Check                             |     Result |
+| --------------------------------- | ---------: |
+| Buildings                         |         12 |
+| Rows per building                 |     17,544 |
+| Duplicate building/timestamp keys |          0 |
+| Non-hourly intervals              |          0 |
+| Target mismatches                 |          0 |
+| Lag mismatches                    |          0 |
+| Missing energy observations       |     18,169 |
+| Missing target observations       |     18,178 |
+| Start timestamp                   | 2016-01-01 |
+| End timestamp                     | 2017-12-31 |
+
+The audit was used to establish that the selected data had the expected hourly structure and that the generated temporal features were aligned with the underlying observations.
+
+---
+
+# Canonical Processed Dataset
 
 The canonical Phase 1 feature dataset is:
 
-```text
+```text id="j5yq3a"
 data/processed/phase1_features.parquet
 ```
 
-It contains:
+Current size:
 
-* 210,528 rows
-* 44 columns
-* 12 buildings
-* 17,544 rows per building
-
-The time range is:
-
-```text
-2016-01-01 00:00
-        →
-2017-12-31 23:00
+```text id="xw9bq5"
+Rows:    210,528
+Columns: 44
 ```
 
-The dataset contains two complete years of hourly observations per selected
-building.
+This dataset contains the engineered features required by the Phase 1 ML experiments.
 
-## Data Validation
+It is also currently used by the application API for historical consumption and prediction-context retrieval.
 
-The Phase 1 validation pipeline checks the structural and temporal integrity
-of the dataset.
+---
 
-Validation includes:
+# Feature Dataset
 
-* duplicate building/timestamp keys
-* hourly timestamp continuity
-* missing energy observations
-* target availability
-* lag correctness
-* feature consistency
+The processed dataset combines several categories of information.
 
-Final validation results:
+## Energy History
 
-```text
-Duplicate building/timestamp keys: 0
-Non-hourly rows:                   0
-1h lag mismatches:                 0
-2h lag mismatches:                 0
-3h lag mismatches:                 0
-24h lag mismatches:                0
-48h lag mismatches:                0
-72h lag mismatches:                0
-168h lag mismatches:               0
-```
+Historical electricity consumption is used to construct temporal features such as:
 
-The processed dataset contains:
+* lagged consumption
+* recent consumption statistics
+* rolling means
+* rolling maximums
 
-```text
-Missing energy observations: 18,169
-Missing target observations: 18,178
-```
+These features provide the model with information about recent building behavior.
 
-Missingness is explicitly represented as part of the data-quality state rather
-than silently treating missing observations as valid measurements.
+---
 
-## Data Quality Flags
+## Weather
 
-The feature dataset includes quality-related fields used to represent data
-quality conditions.
+Weather information provides environmental context for energy consumption.
 
-These include:
+Weather variables are incorporated into the feature dataset alongside building and temporal information.
 
-```text
-quality_missing
-quality_negative
-quality_duplicate
-quality_flag
-```
+---
 
-Duplicate keys are independently validated as part of the data-quality
-pipeline.
+## Building Metadata
 
-## Feature Dataset
+Building-level metadata provides relatively static contextual information.
 
-The Phase 1 feature dataset contains the following major feature groups.
+Examples include:
 
-### Identity and Metadata
+* site information
+* primary use
+* floor area
+* timezone
 
-```text
-building_id
-site_id
-primary_use
-square_feet
-floor_area
-timezone
-```
+---
 
-### Energy
+## Calendar Features
 
-```text
-energy_kwh
-```
+Temporal features capture recurring consumption patterns.
 
-### Weather
+These include calendar-derived information such as:
 
-```text
-air_temperature
-dew_temperature
-cloud_coverage
-wind_speed
-wind_direction
-sea_level_pressure
-precip_depth_1_hr
-```
+* hour
+* weekday
+* day
+* month
 
-### Calendar
-
-```text
-hour
-day_of_week
-month
-day_of_year
-is_weekend
-```
-
-### Cyclical Time
-
-```text
-hour_sin
-hour_cos
-day_of_year_sin
-day_of_year_cos
-```
-
-### Historical Energy Lags
-
-```text
-energy_lag_1h
-energy_lag_2h
-energy_lag_3h
-energy_lag_24h
-energy_lag_48h
-energy_lag_72h
-energy_lag_168h
-```
-
-### Rolling Energy Statistics
-
-```text
-energy_roll_mean_3h
-energy_roll_mean_6h
-energy_roll_mean_24h
-energy_roll_max_24h
-energy_roll_mean_168h
-energy_roll_max_168h
-```
-
-### Degree-Day Features
-
-```text
-heating_degree_hour
-cooling_degree_hour
-```
-
-### Prediction Target
-
-```text
-target_next_hour_kwh
-```
-
-## Feature Construction Pipeline
-
-The current data pipeline is:
-
-```text
-Raw BDG2 CSV Files
-        ↓
-Load Electricity Data
-        ↓
-Normalize Metadata Columns
-        ↓
-Normalize Weather Columns
-        ↓
-Merge Electricity + Metadata
-        ↓
-Merge Weather by Site + Timestamp
-        ↓
-Calendar Features
-        ↓
-Historical Energy Lags
-        ↓
-Strictly-Past Rolling Features
-        ↓
-Weather-Derived Features
-        ↓
-Next-Hour Target
-        ↓
-Validation
-        ↓
-phase1_features.parquet
-```
-
-## Timestamp Handling
-
-The project treats energy consumption as an hourly time series.
-
-Timestamps are converted to datetime values during processing and the final
-dataset is sorted by:
-
-```text
-building_id
-timestamp
-```
-
-The feature pipeline verifies that observations occur at hourly intervals.
-
-## Historical Energy Features
-
-Historical energy features provide the model with information about recent and
-seasonal consumption patterns.
-
-The project uses lags at:
-
-```text
-1 hour
-2 hours
-3 hours
-24 hours
-48 hours
-72 hours
-168 hours
-```
-
-These represent immediate history, daily history, and weekly history.
-
-## Rolling Features
-
-Rolling features summarize recent energy behavior.
-
-The project calculates:
-
-```text
-3-hour mean
-6-hour mean
-24-hour mean
-24-hour maximum
-168-hour mean
-168-hour maximum
-```
-
-Rolling calculations use strictly historical observations.
-
-The energy series is shifted by one hour before rolling calculations so that
-the current prediction interval cannot contribute information to its own
-features.
-
-This is an explicit protection against temporal data leakage.
-
-## Weather Features
-
-Weather observations are joined to building energy observations using:
-
-```text
-site_id
-timestamp
-```
-
-The normalized weather fields are:
-
-```text
-air_temperature
-dew_temperature
-cloud_coverage
-wind_speed
-wind_direction
-sea_level_pressure
-precip_depth_1_hr
-```
-
-Weather availability is not uniform across all variables.
-
-Temperature-related variables are highly complete, while cloud coverage and
-precipitation contain more missing observations.
-
-Missing weather values are preserved rather than fabricated.
+---
 
 ## Degree-Day Features
 
-The pipeline derives two temperature-related features:
+Heating and cooling degree-day style features are included to represent temperature-related energy demand.
 
-```text
-heating_degree_hour
-cooling_degree_hour
+These provide additional context for weather-sensitive building consumption.
+
+---
+
+## Forecast Target
+
+The primary target is:
+
+```text id="0y2w3x"
+target_next_hour_kwh
 ```
 
-The degree-day features use a base temperature of 18°C.
+It represents the next-hour energy consumption associated with the current feature row.
 
-Heating degree hour increases when temperature falls below the base temperature.
+---
 
-Cooling degree hour increases when temperature rises above the base temperature.
+# Temporal Alignment
 
-## Prediction Target
+Temporal alignment is an important part of the dataset construction.
 
-The forecasting target is the next hourly electricity consumption value.
+The dataset is hourly.
 
-For an observation at time `t`:
+Historical features must refer only to information available before the prediction timestamp.
 
-```text
-target_next_hour_kwh = energy(t + 1)
+Conceptually:
+
+```text id="n2x5b6"
+t-168 ... t-2  t-1   t
+   │              │    │
+   │              │    └── Prediction target context
+   │              └────── Recent history
+   └───────────────────── Historical window
 ```
 
-The target is generated using a one-step negative shift within each building.
+The inference service currently requires 168 consecutive hourly observations immediately preceding the prediction timestamp.
 
-This makes the task a next-hour forecasting problem.
+This requirement is enforced at the ML-service boundary.
 
-## Train/Validation/Test Data
+---
 
-The project uses temporal splitting rather than random row-level splitting.
+# Missing Data
 
-This preserves the chronological nature of the forecasting problem and avoids
-allowing future observations to leak into earlier training periods.
+The initial audit identified missing electricity observations and corresponding missing next-hour targets.
 
-The exact split logic is implemented in the project's temporal split utilities
-and is tested independently.
+Missing values are therefore treated as an explicit data-quality concern rather than silently assuming the source data is complete.
 
-## Data and Model Contract
+Downstream feature construction and inference logic must preserve the assumptions established by the Phase 1 pipeline.
 
-The processed feature dataset is the canonical input to Phase 1 model
-training.
+---
 
-The resulting model artifact is:
+# Training / Inference Data Relationship
 
-```text
+The same feature definitions are intended to be preserved between model development and model serving.
+
+The conceptual relationship is:
+
+```text id="9c4vbn"
+Processed Historical Data
+          ↓
+   Phase 1 Features
+       ↙       ↘
+ Training      Inference
+    ↓             ↓
+ Model        Prediction
+```
+
+The FastAPI inference service reconstructs the required feature representation from the supplied historical context.
+
+This reduces the risk of training-serving feature mismatch.
+
+---
+
+# Application Data Access
+
+During Phase 3, the processed feature dataset also became an application data source.
+
+The Express application API currently uses the Parquet dataset for historical consumption and prediction-context retrieval.
+
+The flow is:
+
+```text id="v4n8qj"
+phase1_features.parquet
+          ↓
+Application Repository
+          ↓
+Application Service
+          ↓
+Express API
+          ↓
+Next.js
+```
+
+This is intentionally a simple local architecture.
+
+It avoids introducing a database before the application has an operational requirement for one.
+
+---
+
+# Building Metadata for the Application
+
+The application API uses an exported building metadata file:
+
+```text id="9m4d1k"
+apps/api/src/data/buildings.json
+```
+
+The export is generated using:
+
+```text id="1zq8s6"
+scripts/phase3_export_buildings.py
+```
+
+This provides the application layer with a stable representation of the selected buildings.
+
+The export does not replace the original BDG2 source data.
+
+---
+
+# Data Ownership by Layer
+
+The current data responsibilities are:
+
+| Layer                | Data Responsibility                   |
+| -------------------- | ------------------------------------- |
+| `data/raw/`          | Original source data                  |
+| `data/processed/`    | Validated and engineered datasets     |
+| `ml/`                | Data processing and ML pipeline logic |
+| `models/`            | Serialized ML artifacts               |
+| `apps/api/src/data/` | Application-facing building metadata  |
+| FastAPI              | Prediction-time feature construction  |
+| Next.js              | Presentation of API responses         |
+
+---
+
+# Data Flow Through the Current Platform
+
+The complete current data path is:
+
+```text id="8w3m1e"
+BDG2 Raw Data
+      ↓
+Phase 1 Validation
+      ↓
+Feature Engineering
+      ↓
+phase1_features.parquet
+      ├───────────────┐
+      │               │
+      ▼               ▼
+ML Training       Application API
+      │               │
+      ▼               ▼
+Random Forest     Historical Data
+      │               │
+      ▼               │
+FastAPI           Express API
+      │               │
+      └───────┬───────┘
+              ▼
+           Next.js
+```
+
+---
+
+# Data Used for Prediction
+
+For the current Random Forest inference path, prediction requires:
+
+```text id="s0j8bz"
+Target timestamp
++
+Building metadata
++
+Weather context
++
+168 hourly historical observations
+```
+
+The application API obtains the relevant context from the processed dataset before sending the request to FastAPI.
+
+The ML service then validates and transforms this information into the model's expected feature representation.
+
+---
+
+# Current Storage Strategy
+
+The project deliberately uses file-based storage during the early development phases.
+
+Current storage includes:
+
+```text id="0s5a1b"
+CSV
+ ↓
+Parquet
+ ↓
+Joblib model artifact
+ ↓
+JSON application metadata
+```
+
+This keeps the platform:
+
+* local
+* reproducible
+* inexpensive
+* easy to inspect
+* CPU-friendly
+
+---
+
+# Why No Database Yet?
+
+A dedicated operational database has not yet been introduced.
+
+The current requirements can be satisfied by:
+
+* Parquet for historical analytical data
+* JSON for the small application building catalog
+* joblib for the current model artifact
+
+A database can be justified later if the platform begins storing operational state such as:
+
+* prediction history
+* monitoring measurements
+* model metadata
+* alerts
+* user configuration
+* retraining records
+
+The architecture therefore leaves room for a future database without prematurely adding one.
+
+---
+
+# Data Validation Philosophy
+
+The project treats validation as a first-class stage.
+
+The intended principle is:
+
+```text id="6v8bq2"
+Raw Data
+   ↓
+Validate
+   ↓
+Transform
+   ↓
+Feature Engineering
+   ↓
+Model
+```
+
+Rather than:
+
+```text id="3d7h2m"
+Raw Data
+   ↓
+Immediately Train Model
+```
+
+Important validation areas include:
+
+* timestamp integrity
+* hourly continuity
+* duplicate keys
+* missing values
+* target alignment
+* lag alignment
+* building identity
+* feature consistency
+
+---
+
+# Reproducibility
+
+Data-processing scripts are kept in the repository rather than relying on manual spreadsheet transformations.
+
+Important scripts include:
+
+```text id="u4qk8m"
+scripts/phase0_data_proof.py
+scripts/phase1_build_features.py
+scripts/phase3_export_buildings.py
+```
+
+This makes the major transformations reproducible and inspectable.
+
+---
+
+# Data and Model Boundary
+
+The processed feature dataset is not itself the model.
+
+The distinction is:
+
+```text id="m5n3p7"
+Data
+ ↓
+Features
+ ↓
+Training
+ ↓
+Model Artifact
+```
+
+The current Random Forest artifact is stored separately:
+
+```text id="8e6q1z"
 models/random_forest_phase1.joblib
 ```
 
-Phase 2 reconstructs the required features from API input and verifies feature
-parity against the Phase 1 feature builder.
+This separation allows future models to be trained from the same processed dataset without modifying the underlying data layer.
 
-This establishes a training-to-serving data contract.
+---
 
-## Future Data Work
+# Historical Forecasting Limitation
 
-Later phases may introduce:
+The source dataset ends on:
 
-* additional buildings
-* additional datasets
-* automated data ingestion
-* stronger schema validation
-* automated data-quality reports
+```text id="4p7r2x"
+2017-12-31
+```
+
+Therefore, the current application's forecast demonstration uses historical observations.
+
+The data pipeline currently does not provide a live stream of present-day building measurements.
+
+Consequently:
+
+```text id="x1k8fd"
+Current system:
+Historical data → inference demonstration
+
+Future production system:
+Live data → feature pipeline → inference → monitoring
+```
+
+This distinction is important when describing the project as a production-oriented platform.
+
+---
+
+# Future Data Architecture
+
+Later phases can extend the current data layer toward a more operational architecture.
+
+The intended evolution is:
+
+```text id="r8y4ks"
+Historical / Incoming Data
+          ↓
+Data Validation
+          ↓
+Feature Pipeline
+          ↓
+Feature Storage
+          ↓
+Model Inference
+          ↓
+Prediction Storage
+          ↓
+Monitoring
+```
+
+Potential future additions include:
+
+* automated ingestion
 * data-quality monitoring
-* feature distribution monitoring
-* data drift detection
-* incremental data pipelines
-* production data ingestion
+* feature versioning
+* prediction storage
+* drift detection
+* operational databases
+* retraining datasets
 
-The current BDG2 dataset remains the reproducible development foundation for
-the platform.
+These are planned capabilities rather than current implementations.
 
+---
+
+# Data Architecture Summary
+
+The current data architecture is:
+
+```text id="6h2q1v"
+                 ┌──────────────────────┐
+                 │      BDG2 Raw Data   │
+                 └──────────┬───────────┘
+                            │
+                            ▼
+                 ┌──────────────────────┐
+                 │ Validation + Feature │
+                 │ Engineering          │
+                 └──────────┬───────────┘
+                            │
+                            ▼
+                 ┌──────────────────────┐
+                 │ phase1_features      │
+                 │ .parquet             │
+                 └───────┬───────┬──────┘
+                         │       │
+                    Training   Application
+                         │       │
+                         ▼       ▼
+                    ML Model   Express API
+                         │       │
+                         ▼       │
+                      FastAPI   │
+                         │       │
+                         └───┬───┘
+                             ▼
+                          Next.js
+```
+
+The current strategy deliberately prioritizes correctness, reproducibility, and clear data boundaries.
+
+The data layer is now sufficient to support the completed Phase 1 ML pipeline and the Phase 3 end-to-end application.
+
+Future phases will extend it toward operational data ingestion, monitoring, and automated ML lifecycle management.
