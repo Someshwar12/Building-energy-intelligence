@@ -28,3 +28,15 @@ services:
       dockerfile: docker/model-service.Dockerfile
     ports:
       - "8000:8000"
+
+  mlflow:
+    build:
+      context: .
+      dockerfile: docker/mlflow.Dockerfile
+    ports:
+      - "5000:5000"
+    volumes:
+      - mlflow-data:/mlflow
+
+volumes:
+  mlflow-data:
