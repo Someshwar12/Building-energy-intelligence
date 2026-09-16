@@ -117,3 +117,49 @@ export async function getBuilding(
     `/api/buildings/${encodeURIComponent(buildingId)}`,
   );
 }
+
+export type Anomaly = {
+  timestamp: string;
+  energy_kwh: number;
+  expected_kwh: number;
+  deviation_pct: number;
+  score: number;
+  severity: "High" | "Medium" | "Low";
+};
+
+export type AnomalyAnalysis = {
+  building_id: string;
+  from: string | null;
+  to: string | null;
+  detection_method: string;
+  points_analyzed: number;
+  anomalies_detected: number;
+  high_severity: number;
+  medium_severity: number;
+  low_severity: number;
+  anomalies: Anomaly[];
+};
+
+export async function getBuildingAnomalies(
+  buildingId: string,
+  from?: string,
+  to?: string,
+): Promise<AnomalyAnalysis> {
+  const params = new URLSearchParams();
+
+  if (from) {
+    params.set("from", from);
+  }
+
+  if (to) {
+    params.set("to", to);
+  }
+
+  const query = params.toString();
+
+  return request(
+    `/api/buildings/${encodeURIComponent(
+      buildingId,
+    )}/anomalies${query ? `?${query}` : ""}`,
+  );
+}

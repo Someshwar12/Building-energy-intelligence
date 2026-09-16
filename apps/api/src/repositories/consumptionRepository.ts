@@ -15,7 +15,7 @@ export type ConsumptionPoint = {
 
 const PROJECT_ROOT = path.resolve(
   import.meta.dirname,
-  "../../../..",
+  "../..",
 );
 
 const DATASET_PATH = path.join(
