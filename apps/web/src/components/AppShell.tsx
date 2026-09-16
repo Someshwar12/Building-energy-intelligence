@@ -25,6 +25,10 @@ const navigation = [
     label: "Anomalies",
     href: "/anomalies",
   },
+  {
+    label: "Model Lab",
+    href: "/model-lab",
+  }
 ];
 
 function isActive(

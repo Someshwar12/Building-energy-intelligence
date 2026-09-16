@@ -11,90 +11,126 @@ The architecture separates:
 - ML inference
 - application-level orchestration
 - frontend presentation
+- ML lifecycle management
 
-The system is being developed incrementally so that each layer can be tested independently before additional infrastructure is introduced.
+The system is developed incrementally so that each layer can be implemented, tested, validated, and documented before additional complexity is introduced.
 
 The current implemented architecture is:
 
 ```text
-┌──────────────────────────────────────────────┐
-│              Next.js / React                 │
-│                                              │
-│  Overview                                    │
-│  Building Details                            │
-│  Consumption Visualization                   │
-│  Forecast Display                            │
-└──────────────────────┬───────────────────────┘
-                       │
-                       ▼
-┌──────────────────────────────────────────────┐
-│            Node.js / Express                 │
-│                                              │
-│  Building API                                │
-│  Consumption API                             │
-│  Prediction Context                          │
-│  Application-level orchestration             │
-└──────────────────────┬───────────────────────┘
-                       │
-                       ▼
-┌──────────────────────────────────────────────┐
-│             FastAPI ML Service               │
-│                                              │
-│  Request Validation                           │
-│  Feature Construction                         │
-│  Model Loading                                │
-│  Inference                                    │
-└──────────────────────┬───────────────────────┘
-                       │
-                       ▼
-┌──────────────────────────────────────────────┐
-│          Phase 1 Random Forest Model         │
-└──────────────────────────────────────────────┘
+                         Building & Energy Intelligence
+                                      │
+        ┌─────────────────────────────┼─────────────────────────────┐
+        │                             │                             │
+        ▼                             ▼                             ▼
+   Data / ML                     Application                  ML Lifecycle
+   Development                    Platform                    Management
+        │                             │                             │
+        ▼                             ▼                             ▼
+   BDG2 Dataset                  Next.js / React               MLflow
+        │                             │                             │
+        ▼                             ▼                             ▼
+   Feature Dataset               Express API              Model Registry
+        │                             │                             │
+        ▼                             ▼                             ▼
+   ML Training                  FastAPI ML Service          Evaluation Gates
+        │                             │                             │
+        ▼                             ▼                             ▼
+   Model Artifacts                 Inference              Promotion Guard
+                                      │                             │
+                                      └──────────────┬──────────────┘
+                                                     ▼
+                                             Serving Decision
 ````
 
 ---
 
-## Design Principles
+# Design Principles
 
 The architecture follows several principles.
 
-### Separation of concerns
+## Separation of Concerns
 
 Each service has a clearly defined responsibility.
 
-The frontend is responsible for presentation and user interaction.
+The frontend is responsible for:
 
-The application API is responsible for application-level orchestration and data access.
+* presentation
+* user interaction
+* analytical visualization
+* frontend state
 
-The ML service is responsible for machine-learning inference.
+The application API is responsible for:
+
+* application-level orchestration
+* building metadata access
+* historical consumption access
+* prediction-context preparation
+* communication with the ML service
+
+The ML service is responsible for:
+
+* request validation
+* feature construction
+* model loading
+* inference
+* prediction response
+
+MLflow is responsible for:
+
+* experiment tracking
+* model artifact registration
+* model versioning
+* lifecycle metadata
 
 The ML model itself remains isolated from the application presentation layer.
 
 ---
 
-### Explicit service boundaries
+## Explicit Service Boundaries
 
 The frontend does not communicate directly with the FastAPI ML service.
 
 Instead:
 
 ```text
-Frontend → Express API → FastAPI ML Service
+Frontend
+   ↓
+Express API
+   ↓
+FastAPI ML Service
+   ↓
+ML Model
 ```
 
 This creates a stable application boundary and allows the ML implementation to evolve independently from the user interface.
 
+The ML lifecycle is also separated from the frontend:
+
+```text
+Training / Evaluation
+        ↓
+      MLflow
+        ↓
+Model Registry
+        ↓
+Promotion Decision
+        ↓
+FastAPI Serving
+```
+
 ---
 
-### Reuse of established ML contracts
+## Reuse of Established ML Contracts
 
-The Phase 3 application consumes the inference contract established during Phase 2.
+The application consumes the inference contract established during the ML-service phase.
 
 The application does not independently recreate the ML model logic.
 
 The FastAPI service remains responsible for:
 
 * input validation
+* historical-context validation
 * feature construction
 * model loading
 * inference
@@ -104,13 +140,44 @@ This avoids duplicating ML logic across application layers.
 
 ---
 
-### Incremental architecture
+## Feature Parity
 
-The system is intentionally built in phases.
+The feature construction used during inference reproduces the feature definitions established during model development.
 
-The current architecture should not be interpreted as the final production architecture.
+The current forecasting workflow requires:
 
-Infrastructure such as experiment tracking, model registries, monitoring, retraining, containerization, and deployment will be introduced only when their corresponding phases are reached.
+```text
+Historical observations
+        +
+Building metadata
+        +
+Weather context
+        +
+Target timestamp
+        ↓
+Feature Construction
+        ↓
+ML Inference
+```
+
+This preserves feature parity between training and inference and reduces the risk of training-serving skew.
+
+---
+
+## CPU-First Architecture
+
+The initial platform is designed to run locally on a normal development laptop without requiring a GPU.
+
+The current architecture therefore avoids:
+
+* GPU-dependent infrastructure
+* large transformer models
+* LLM serving
+* autonomous agents
+* distributed training
+* unnecessary cloud infrastructure
+
+The architecture can evolve if a future requirement genuinely justifies additional infrastructure.
 
 ---
 
@@ -118,7 +185,7 @@ Infrastructure such as experiment tracking, model registries, monitoring, retrai
 
 ## Layer 1 — Data
 
-The project begins with the BDG2 dataset.
+The project begins with the Building Data Genome Project 2 (BDG2) dataset.
 
 The main data flow is:
 
@@ -140,13 +207,11 @@ The canonical processed feature dataset is:
 data/processed/phase1_features.parquet
 ```
 
-This dataset is shared by the ML development pipeline and the current application-level historical consumption interface.
+This dataset is used by the ML development pipeline and the current application-level historical consumption interface.
 
 ---
 
 ## Layer 2 — Machine Learning
-
-Phase 1 established the initial forecasting pipeline.
 
 The ML workflow is:
 
@@ -162,28 +227,42 @@ Model Training
 Evaluation
       ↓
 Model Artifact
+      ↓
+MLflow Tracking
 ```
 
-The initial ML models included:
+The initial evaluated models include:
 
 * Persistence
 * Ridge Regression
 * Random Forest
 * HistGradientBoosting
 
-The persistence model remains the strongest benchmark baseline.
+The persistence model is retained as the primary benchmark baseline.
 
-The Random Forest model was retained as the first ML challenger and deployable model artifact.
+Random Forest was retained as the initial learned ML challenger and deployable model artifact.
 
-The artifact is:
+The local artifact is:
 
 ```text
 models/random_forest_phase1.joblib
 ```
 
+The project distinguishes between:
+
+```text
+Benchmark Baseline
+Persistence
+
+Learned ML Challenger
+Random Forest
+```
+
+A learned model is not considered the production model simply because it is the strongest learned model.
+
 ---
 
-## Layer 3 — ML Inference Service
+# Layer 3 — ML Inference Service
 
 The ML model is exposed through a standalone FastAPI service.
 
@@ -212,18 +291,18 @@ Historical Context Validation
       ↓
 Feature Construction
       ↓
-Random Forest Inference
+Serving Strategy
+      ↓
+Learned Model OR Persistence Baseline
       ↓
 Structured Prediction Response
 ```
 
-The service loads the model artifact at startup and verifies that the artifact contains the expected structure.
+The service loads the required model configuration at startup and exposes an explicit readiness state.
 
 ---
 
 # Prediction Contract
-
-The prediction service expects the historical context required to reproduce the Phase 1 feature construction.
 
 The current forecasting workflow requires:
 
@@ -237,15 +316,26 @@ weather context
 target timestamp
 ```
 
-The resulting feature vector is constructed using the same feature definitions used during Phase 1.
+The resulting feature vector is constructed using the same feature definitions established during model development.
 
-This provides feature parity between training and inference.
+This establishes the contract:
+
+```text
+Training Feature Definition
+          ↓
+       ML Model
+          ↑
+          │
+Same Feature Definition
+          ↑
+Inference Feature Construction
+```
 
 ---
 
 # Layer 4 — Application API
 
-The Node.js/Express application API was introduced in Phase 3.
+The Node.js/Express application API provides the application-facing service boundary.
 
 Location:
 
@@ -253,15 +343,15 @@ Location:
 apps/api/
 ```
 
-Its purpose is to provide an application-facing API rather than exposing the ML service directly to the frontend.
-
-The application API is responsible for:
+Its responsibilities include:
 
 * building discovery
 * building metadata
 * historical consumption retrieval
 * prediction-context preparation
 * communication with the FastAPI service
+* anomaly analysis
+* ML lifecycle information access
 * application-level error handling
 
 The internal structure follows:
@@ -276,22 +366,24 @@ Repositories
 Data / ML Service
 ```
 
+This prevents route handlers from becoming responsible for data access and application logic simultaneously.
+
 ---
 
-## Application API Routes
+# Application API Routes
 
-### Buildings
+## Buildings
 
 ```text
 GET /api/buildings
 GET /api/buildings/:buildingId
 ```
 
-These endpoints expose the available buildings and their metadata.
+These endpoints expose available buildings and their metadata.
 
 ---
 
-### Consumption
+## Consumption
 
 ```text
 GET /api/buildings/:buildingId/consumption
@@ -307,7 +399,7 @@ data/processed/phase1_features.parquet
 
 ---
 
-### Forecast
+## Forecast
 
 ```text
 GET /api/buildings/:buildingId/forecast
@@ -319,21 +411,49 @@ The frontend therefore does not need to know how the prediction context is assem
 
 ---
 
+## Anomalies
+
+```text
+GET /api/buildings/:buildingId/anomalies
+```
+
+The anomaly endpoint provides building-level anomaly analysis over historical consumption.
+
+The current anomaly service uses a rolling statistical detection approach based on historical consumption behavior.
+
+---
+
+## Model Lab
+
+```text
+GET /api/model-lab/summary
+GET /api/model-lab/versions
+GET /api/model-lab/runs
+```
+
+These endpoints expose ML lifecycle information from the ML service to the application.
+
+Model Lab is an observability surface over the MLflow lifecycle.
+
+It does not perform training or independently decide which model becomes production.
+
+---
+
 # Application Data Flow
 
 ## Building Discovery
 
 ```text
-Next.js Overview
-      ↓
+Next.js
+   ↓
 API Client
-      ↓
+   ↓
 Express /api/buildings
-      ↓
+   ↓
 Building Service
-      ↓
+   ↓
 Building Repository
-      ↓
+   ↓
 buildings.json
 ```
 
@@ -380,11 +500,13 @@ Prediction Service
       ↓
 Prediction Repository
       ↓
-168-hour historical context
+168-hour Historical Context
       ↓
 FastAPI /predict
       ↓
-Random Forest Model
+Serving Strategy
+      ↓
+Learned Model / Persistence
       ↓
 Prediction Response
       ↓
@@ -403,21 +525,38 @@ The frontend is located at:
 apps/web/
 ```
 
-The current structure is:
+The application uses:
+
+* Next.js
+* React
+* TypeScript
+* Tailwind CSS
+* Recharts
+
+The current route structure includes:
 
 ```text
-apps/web/src/
-├── app/
-│   ├── buildings/
-│   │   └── [buildingId]/
-│   │       └── page.tsx
-│   ├── globals.css
-│   ├── layout.tsx
+apps/web/src/app/
+
+├── page.tsx
+├── buildings/
+│   ├── page.tsx
+│   └── [buildingId]/
+│       └── page.tsx
+├── consumption/
 │   └── page.tsx
-├── components/
-│   └── ConsumptionChart.tsx
-└── lib/
-    └── api.ts
+├── forecasts/
+│   └── page.tsx
+├── anomalies/
+│   └── page.tsx
+└── model-lab/
+    └── page.tsx
+```
+
+Shared application components are located under:
+
+```text
+apps/web/src/components/
 ```
 
 The frontend API client is centralized in:
@@ -426,26 +565,44 @@ The frontend API client is centralized in:
 apps/web/src/lib/api.ts
 ```
 
-The client provides typed interfaces for application responses such as:
+The client provides typed interfaces for application responses including:
 
 * Building
 * ConsumptionPoint
 * Forecast
+* Anomaly
+* ModelVersion
+* ModelLabSummary
+* ModelLabRun
 
 ---
 
 # Frontend Information Architecture
 
-The application currently provides two primary views.
+The application provides several complementary analytical views.
 
 ## Overview
 
-The overview page provides access to the available buildings.
+The overview page provides a high-level view of the platform and access to building-level analysis.
 
 ```text
 Overview
    ↓
-Building List
+Buildings
+   ↓
+Building Details
+```
+
+---
+
+## Buildings
+
+The buildings view provides access to the available building inventory and building-level metadata.
+
+```text
+Buildings
+   ↓
+Building
    ↓
 Building Details
 ```
@@ -458,17 +615,51 @@ The building detail page provides the primary analytical workflow.
 
 ```text
 Building Details
-      │
-      ├── Building Metadata
-      │
-      ├── Consumption ───────── Forecast
-      │
-      └── Building Profile
+       │
+       ├── Building Metadata
+       │
+       ├── Consumption
+       │
+       ├── Forecast
+       │
+       └── Building Profile
 ```
 
-The consumption and forecast views are placed together because they represent related analytical information.
+Consumption and forecast information are presented together because they represent related analytical information.
 
-The building profile is presented separately as contextual metadata.
+---
+
+## Consumption
+
+The consumption view provides historical energy analysis independent of the forecast workflow.
+
+---
+
+## Forecasts
+
+The forecast view provides access to prediction-oriented analysis.
+
+---
+
+## Anomalies
+
+The anomaly view surfaces statistically unusual consumption behavior.
+
+---
+
+## Model Lab
+
+Model Lab provides visibility into:
+
+* registered model versions
+* evaluation state
+* model runs
+* baseline information
+* lifecycle information
+* serving state
+* MLflow metrics and parameters
+
+The interface is intentionally treated as an observability layer rather than as the ML lifecycle controller.
 
 ---
 
@@ -480,6 +671,7 @@ Current repositories include:
 
 ```text
 apps/api/src/repositories/
+
 ├── buildingRepository.ts
 ├── consumptionRepository.ts
 └── predictionRepository.ts
@@ -491,7 +683,7 @@ Responsible for retrieving building metadata.
 
 ### Consumption Repository
 
-Responsible for reading historical consumption from the processed Parquet dataset.
+Responsible for reading historical consumption from the processed feature dataset.
 
 ### Prediction Repository
 
@@ -507,14 +699,395 @@ Application logic is separated into services:
 
 ```text
 apps/api/src/services/
+
 ├── buildingService.ts
 ├── consumptionService.ts
-└── predictionService.ts
+├── predictionService.ts
+├── anomalyService.ts
+└── modelLabService.ts
 ```
 
-The services provide the application-level interface between routes and repositories/external services.
+The services provide the application-level interface between routes, repositories, and external services.
 
-The prediction service additionally acts as the boundary between the Express application and FastAPI ML service.
+The prediction service acts as the boundary between the Express application and FastAPI ML service.
+
+The anomaly service encapsulates anomaly-detection logic.
+
+The Model Lab service encapsulates communication between the application API and ML lifecycle endpoints.
+
+---
+
+# ML Lifecycle Architecture
+
+Phase 4 introduced MLflow as the lifecycle management layer.
+
+The lifecycle is:
+
+```text
+Data
+  ↓
+Feature Engineering
+  ↓
+Training
+  ↓
+Experiment Tracking
+  ↓
+Evaluation
+  ↓
+Model Registry
+  ↓
+Baseline Guard
+  ↓
+Lifecycle Decision
+  ↓
+Serving
+```
+
+The system therefore separates:
+
+```text
+Model Development
+        ↓
+Model Management
+        ↓
+Model Serving
+```
+
+---
+
+# MLflow Architecture
+
+The local system uses MLflow for experiment tracking and model registry functionality.
+
+The primary MLflow experiment is:
+
+```text
+building-energy-phase1
+```
+
+The registered model is:
+
+```text
+building-energy-forecast
+```
+
+Training records include information such as:
+
+* model parameters
+* validation metrics
+* test metrics
+* dataset/reference metadata
+* configuration
+* Git commit information
+* model artifacts
+* model signatures
+* model-family information
+* validation status
+
+The registry provides versioned model artifacts rather than relying only on local `.joblib` files.
+
+---
+
+# Current Model Registry
+
+The current registered learned models are:
+
+```text
+v1 — Ridge
+v2 — Random Forest
+v3 — HistGradientBoosting
+```
+
+Their registry state is governed by evaluation and lifecycle rules.
+
+The current promotion state is:
+
+```text
+Learned Production Model
+None
+
+Operational Serving Strategy
+Persistence Baseline
+```
+
+This is intentional.
+
+---
+
+# Evaluation-Driven Promotion
+
+A learned model is not automatically promoted merely because it is the best learned model.
+
+The promotion workflow is:
+
+```text
+Registered Learned Models
+          ↓
+Evaluated Learned Models
+          ↓
+Select Best Learned Model
+          ↓
+Validation Macro-Building NMAE
+          ↓
+Compare Against Persistence Baseline
+          ↓
+       Baseline Guard
+          │
+     ┌────┴────┐
+     │         │
+   PASS       FAIL
+     │         │
+     ▼         ▼
+Production   Rejected
+```
+
+The learned-model promotion metric is:
+
+```text
+validation_macro_building_nmae
+```
+
+A learned model is eligible for production only when its evaluation result is better than the persistence baseline according to the promotion guard.
+
+This prevents the system from promoting a learned model simply because it outperforms the other learned models.
+
+---
+
+# Current Promotion Result
+
+The current promotion guard selected Random Forest v2 as the strongest evaluated learned candidate.
+
+Its validation macro-building NMAE is:
+
+```text
+0.128728
+```
+
+The persistence baseline guard reference is:
+
+```text
+0.094865
+```
+
+The guard result is:
+
+```text
+BASELINE GUARD: FAILED
+```
+
+Therefore:
+
+```text
+Candidate Alias
+Removed
+
+Production Alias
+Not Changed
+
+Serving Strategy
+Persistence Baseline
+```
+
+The system deliberately does not force a learned model into production.
+
+---
+
+# Baseline Serving
+
+When no learned model owns the production alias, the model service can serve the persistence baseline.
+
+The persistence strategy uses the most recent observed energy value as the next-hour prediction.
+
+The runtime serving state is:
+
+```text
+serving_mode = baseline
+model_name   = persistence
+model_version = baseline
+```
+
+This is an intentional lifecycle state rather than a deployment error.
+
+The resulting architecture is:
+
+```text
+Prediction Request
+       ↓
+FastAPI
+       ↓
+Model Loader / Serving Decision
+       ↓
+No Valid Learned Production Model
+       ↓
+Persistence Baseline
+       ↓
+Prediction Response
+```
+
+This allows the application to remain operational without bypassing the promotion guard.
+
+---
+
+# Model Signatures
+
+The registered model versions were verified against the Docker-hosted MLflow server.
+
+The model signatures contain the feature contract required by the forecasting pipeline, including:
+
+* building identifiers
+* site identifiers
+* primary-use information
+* building area information
+* weather variables
+* calendar features
+* cyclical time features
+* historical energy lag features
+* rolling energy statistics
+* heating degree-hour features
+* cooling degree-hour features
+
+Signature verification provides an additional check that registered model artifacts preserve the expected inference contract.
+
+---
+
+# Docker Architecture
+
+Phase 4 introduced containerized local execution.
+
+The complete local stack consists of four services:
+
+```text
+                         ┌─────────────────────┐
+                         │   Next.js / React   │
+                         │       :3000         │
+                         └──────────┬──────────┘
+                                    │
+                                    ▼
+                         ┌─────────────────────┐
+                         │    Node / Express   │
+                         │       :4000         │
+                         └──────────┬──────────┘
+                                    │
+                                    ▼
+                         ┌─────────────────────┐
+                         │  FastAPI ML Service │
+                         │       :8000         │
+                         └──────────┬──────────┘
+                                    │
+                                    ▼
+                         ┌─────────────────────┐
+                         │       MLflow        │
+                         │       :5000         │
+                         └─────────────────────┘
+```
+
+Docker Compose provides the local service network and persistent MLflow storage.
+
+The browser-facing API is:
+
+```text
+http://localhost:4000
+```
+
+The API communicates with the model service through the Compose network:
+
+```text
+http://model-service:8000
+```
+
+The model service communicates with MLflow through:
+
+```text
+http://mlflow:5000
+```
+
+---
+
+# Container Responsibilities
+
+## Web Container
+
+```text
+docker/web.Dockerfile
+```
+
+Responsible for the production Next.js application.
+
+---
+
+## API Container
+
+```text
+docker/api.Dockerfile
+```
+
+Responsible for the Node.js/Express application API.
+
+The container includes the application data required by the API.
+
+---
+
+## Model Service Container
+
+```text
+docker/model-service.Dockerfile
+```
+
+Responsible for:
+
+* FastAPI
+* model loading
+* feature construction
+* inference
+* MLflow model access
+* baseline serving
+
+---
+
+## MLflow Container
+
+```text
+docker/mlflow.Dockerfile
+```
+
+Responsible for:
+
+* experiment tracking
+* model registry
+* lifecycle metadata
+* persistent MLflow state
+
+MLflow state is stored through a Docker volume.
+
+---
+
+# Runtime Architecture
+
+The local runtime architecture is:
+
+```text
+Browser
+   │
+   ▼
+Next.js :3000
+   │
+   ▼
+Express API :4000
+   │
+   ├──────────────► Application Data
+   │
+   ▼
+FastAPI :8000
+   │
+   ├──────────────► Persistence Baseline
+   │
+   └──────────────► MLflow :5000
+                         │
+                         ▼
+                   Model Registry
+```
+
+The application therefore has a complete request path from user interface to data access and ML inference.
 
 ---
 
@@ -538,73 +1111,33 @@ Frontend Error State
 
 This prevents internal implementation details from being exposed directly to the user interface.
 
-The frontend also provides explicit states for:
+The frontend provides explicit states for:
 
 * loading
 * unavailable data
 * empty data
 * unavailable forecasts
 * unavailable buildings
-
----
-
-# Current Service Responsibilities
-
-| Component              | Responsibility                      |
-| ---------------------- | ----------------------------------- |
-| Next.js                | User interface and presentation     |
-| React                  | UI components and client-side state |
-| Recharts               | Consumption visualization           |
-| Express                | Application API and orchestration   |
-| Building Repository    | Building metadata access            |
-| Consumption Repository | Historical consumption access       |
-| Prediction Repository  | Prediction context preparation      |
-| Prediction Service     | ML-service communication            |
-| FastAPI                | ML inference                        |
-| Random Forest          | Energy prediction                   |
-
----
-
-# Current Runtime Architecture
-
-During local development, the system consists of three application services:
-
-```text
-┌─────────────────────┐
-│   Next.js :3000     │
-│      Frontend       │
-└──────────┬──────────┘
-           │
-           ▼
-┌─────────────────────┐
-│   Express :4000     │
-│   Application API   │
-└──────────┬──────────┘
-           │
-           ▼
-┌─────────────────────┐
-│   FastAPI :8000     │
-│    ML Inference     │
-└─────────────────────┘
-```
-
-The local application therefore provides a complete request path from user interface to model inference.
+* unavailable anomaly analysis
+* unavailable Model Lab information
 
 ---
 
 # Data Storage Strategy
 
-The current phase deliberately keeps storage simple.
+The current architecture deliberately keeps storage simple.
 
-### Raw data
+## Raw Data
 
 ```text
 data/raw/
 ```
 
-Contains the source dataset used during development.
+Contains source dataset material used during development.
 
-### Processed data
+---
+
+## Processed Data
 
 ```text
 data/processed/
@@ -612,23 +1145,55 @@ data/processed/
 
 Contains the canonical Phase 1 feature dataset.
 
-### Model artifacts
+---
+
+## Model Artifacts
 
 ```text
 models/
 ```
 
-Contains trained model artifacts.
+Contains local trained model artifacts.
 
-### Application metadata
+MLflow additionally stores registered model versions and artifacts for lifecycle management.
+
+---
+
+## Application Metadata
 
 ```text
 apps/api/src/data/
 ```
 
-Contains the building metadata consumed by the application API.
+Contains building metadata consumed by the application API.
 
-A dedicated application database has not yet been introduced.
+---
+
+## MLflow Storage
+
+MLflow uses persistent Docker storage for:
+
+* experiment metadata
+* registry metadata
+* model lifecycle state
+* tracked artifacts
+
+---
+
+## Database Boundary
+
+A dedicated application database has not been introduced.
+
+The current application does not require MongoDB or another application database because its present state can be represented through static application data, processed datasets, and MLflow lifecycle storage.
+
+A database can be introduced later if requirements emerge for:
+
+* user-specific state
+* operational records
+* prediction history
+* configuration
+* alerts
+* monitoring records
 
 ---
 
@@ -636,7 +1201,7 @@ A dedicated application database has not yet been introduced.
 
 The following boundaries are intentionally maintained.
 
-## Frontend ↔ Application API
+## Frontend → Application API
 
 The frontend communicates through the typed application API client.
 
@@ -648,9 +1213,11 @@ apps/web/src/lib/api.ts
 Express API
 ```
 
+The frontend does not directly access application data files or ML model artifacts.
+
 ---
 
-## Application API ↔ ML Service
+## Application API → ML Service
 
 The Express API communicates with FastAPI for predictions.
 
@@ -662,23 +1229,67 @@ Prediction Service
 FastAPI /predict
 ```
 
-The Express layer does not implement the Random Forest model.
+The Express layer does not implement the forecasting model.
 
 ---
 
-## ML Service ↔ Model Artifact
+## ML Service → Model Lifecycle
 
-The FastAPI service owns model loading and inference.
+The ML service is responsible for serving the currently valid model strategy.
 
 ```text
 FastAPI
    ↓
 Model Loader
    ↓
-random_forest_phase1.joblib
+MLflow Model Registry
+   ↓
+Production Model
 ```
 
-This prevents application-layer code from depending directly on the serialized model.
+If no valid learned production model is available:
+
+```text
+FastAPI
+   ↓
+Serving Decision
+   ↓
+Persistence Baseline
+```
+
+---
+
+## Training → Registry
+
+Training and evaluation are separate from serving.
+
+```text
+Training
+   ↓
+Evaluation
+   ↓
+MLflow
+   ↓
+Model Registry
+```
+
+The serving service does not retrain models.
+
+---
+
+## Promotion → Production
+
+Promotion is controlled by an explicit evaluation gate.
+
+```text
+Evaluated Candidate
+        ↓
+Baseline Guard
+        ↓
+Production Alias
+```
+
+A failed guard does not overwrite the existing production state.
 
 ---
 
@@ -688,81 +1299,181 @@ Each layer can be validated independently.
 
 ```text
 Python Tests
-     ↓
+      ↓
 ML / Data Components
 
 Node Type Checking + Build
-     ↓
+      ↓
 Application API
 
 Next.js Lint + Build
-     ↓
+      ↓
 Frontend
+
+Docker Runtime Checks
+      ↓
+Containerized System
 ```
 
-The Phase 3 implementation was validated with:
+The model-service test suite currently contains:
 
 ```text
-pytest -p no:cacheprovider
-npm run typecheck
-npm run build
-npm run lint
+20 passed
 ```
 
-All relevant validation checks passed.
+Phase 4 runtime verification also covered:
+
+* Docker Compose configuration
+* MLflow health
+* model-service health
+* model-service readiness
+* API health
+* registered model versions
+* lifecycle metadata
+* MLflow signatures
+* real prediction execution
+* baseline prediction behavior
 
 ---
 
-# Architecture Evolution
+# Current Service Responsibilities
 
-The architecture is intentionally designed to evolve.
+| Component              | Responsibility                         |
+| ---------------------- | -------------------------------------- |
+| Next.js                | User interface and presentation        |
+| React                  | UI components and client-side state    |
+| Recharts               | Analytical visualization               |
+| Express                | Application API and orchestration      |
+| Building Repository    | Building metadata access               |
+| Consumption Repository | Historical consumption access          |
+| Prediction Repository  | Prediction-context preparation         |
+| Building Service       | Building application logic             |
+| Consumption Service    | Consumption application logic          |
+| Prediction Service     | ML-service communication               |
+| Anomaly Service        | Consumption anomaly analysis           |
+| Model Lab Service      | ML lifecycle API integration           |
+| FastAPI                | ML inference and serving strategy      |
+| MLflow                 | Experiment tracking and model registry |
+| Persistence            | Operational baseline forecasting       |
+| Learned Models         | Evaluated forecasting challengers      |
 
-The current system:
+---
+
+# Phase 4 Architectural Outcome
+
+Phase 4 extends the previous application architecture into a local MLOps system.
+
+The resulting architecture is:
 
 ```text
-Data
-  ↓
-ML Model
-  ↓
-FastAPI
-  ↓
-Express
-  ↓
-Next.js
+                         ┌──────────────────────┐
+                         │     Next.js Web      │
+                         │        :3000         │
+                         └──────────┬───────────┘
+                                    │
+                                    ▼
+                         ┌──────────────────────┐
+                         │    Express API       │
+                         │        :4000         │
+                         └──────────┬───────────┘
+                                    │
+                                    ▼
+                         ┌──────────────────────┐
+                         │  FastAPI ML Service  │
+                         │        :8000         │
+                         └──────────┬───────────┘
+                                    │
+                     ┌──────────────┴──────────────┐
+                     │                             │
+                     ▼                             ▼
+             Persistence Baseline          MLflow :5000
+                                                   │
+                                                   ▼
+                                            Model Registry
+                                                   │
+                                                   ▼
+                                            Model Versions
+                                                   │
+                                                   ▼
+                                            Evaluation Gates
+                                                   │
+                                                   ▼
+                                            Promotion Decision
 ```
 
-is the foundation for the future MLOps architecture.
+The most important architectural result is the separation between:
 
-The planned evolution is:
+```text
+User Experience
+       ↓
+Application Logic
+       ↓
+ML Inference
+       ↓
+Model Lifecycle
+       ↓
+Model Artifact / Baseline
+```
+
+This separation allows the platform to evolve without coupling the frontend directly to model-training or model-management infrastructure.
+
+---
+
+# Completed Architecture
+
+The completed current architecture is:
 
 ```text
                     ┌──────────────────────┐
-                    │     Next.js Web      │
+                    │      BDG2 Data       │
                     └──────────┬───────────┘
-                               │
-                               ▼
+                               ↓
                     ┌──────────────────────┐
-                    │   Express API        │
+                    │ Validation + Feature │
+                    │     Engineering      │
                     └──────────┬───────────┘
-                               │
-                               ▼
+                               ↓
                     ┌──────────────────────┐
-                    │   FastAPI ML Service │
+                    │ ML Training + Eval   │
                     └──────────┬───────────┘
-                               │
-                               ▼
+                               ↓
                     ┌──────────────────────┐
-                    │   Model Registry     │
+                    │       MLflow         │
+                    │ Experiment Tracking  │
                     └──────────┬───────────┘
-                               │
-                               ▼
+                               ↓
                     ┌──────────────────────┐
-                    │ Champion / Candidate │
-                    │       Models         │
+                    │    Model Registry    │
+                    └──────────┬───────────┘
+                               ↓
+                    ┌──────────────────────┐
+                    │    Baseline Guard    │
+                    └──────────┬───────────┘
+                               ↓
+                    ┌──────────────────────┐
+                    │    Serving Decision  │
+                    └──────────┬───────────┘
+                               ↓
+                    ┌──────────────────────┐
+                    │   FastAPI Service    │
+                    └──────────┬───────────┘
+                               ↓
+                    ┌──────────────────────┐
+                    │    Express API       │
+                    └──────────┬───────────┘
+                               ↓
+                    ┌──────────────────────┐
+                    │    Next.js Web       │
                     └──────────────────────┘
 ```
 
-Later phases will extend this with:
+---
+
+# Future Architecture
+
+Future phases will extend the current architecture with monitoring, controlled retraining, and deployment.
+
+The intended evolution is:
 
 ```text
 Experiment Tracking
@@ -773,190 +1484,59 @@ Evaluation Gates
         ↓
 Model Promotion
         ↓
+Serving
+        ↓
 Monitoring
         ↓
 Drift Detection
         ↓
+Performance Detection
+        ↓
 Controlled Retraining
+        ↓
+Re-evaluation
+        ↓
+Promotion
         ↓
 Deployment
 ```
 
-These components are planned architecture rather than current implemented functionality.
+These are future architectural capabilities, not requirements of the current completed phase.
 
 ---
 
-# Phase 3 Architectural Outcome
+# Phase 4 Scope Boundary
 
-Phase 3 establishes the application layer without coupling it to future infrastructure.
+Phase 4 is complete.
 
-The completed architecture now provides:
+It does not implement:
 
-```text
-Data
- ↓
-Feature Dataset
- ↓
-ML Model
- ↓
-ML Inference Service
- ↓
-Application API
- ↓
-Web Application
-```
+* GitHub Actions CI/CD
+* production cloud deployment
+* Kubernetes
+* automated data-quality monitoring
+* automated data-drift detection
+* prediction-performance monitoring
+* automated retraining
+* automatic retraining triggers
+* automatic production promotion without evaluation
 
-The most important architectural result is the separation between:
+These capabilities belong to later phases.
+
+The current architecture deliberately stops at:
 
 ```text
-User Experience
-        ↓
-Application Logic
-        ↓
-ML Inference
-        ↓
-Model
-```
-
-This separation provides a stable foundation for the next phase of the project.
-
----
-
-# Next Architectural Stage
-
-The next phase will introduce **MLOps and model lifecycle engineering**.
-
-The focus will shift from serving a trained model to managing models throughout their lifecycle:
-
-```text
-Experiment
-   ↓
 Training
-   ↓
+  ↓
+Tracking
+  ↓
 Evaluation
-   ↓
-Registration
-   ↓
-Champion / Challenger
-   ↓
-Promotion
-   ↓
-Monitoring
-   ↓
-Retraining
+  ↓
+Registry
+  ↓
+Baseline Guard
+  ↓
+Controlled Serving
 ```
 
-The current Phase 3 architecture is designed to accommodate these capabilities without requiring the frontend or application API to directly manage the machine-learning lifecycle.
-## Phase 4 � Reproducibility, MLflow & Model Lifecycle
-
-Phase 4 introduced reproducible local infrastructure and ML lifecycle management around the existing forecasting system.
-
-### Containerized architecture
-
-The application now runs locally through Docker Compose as four services:
-
-- Web � React / Next.js
-- API � Node / Express
-- Model Service � FastAPI
-- MLflow � experiment tracking and model registry
-
-The browser-facing API uses `http://localhost:4000`, while the API communicates with the model service through the Compose network at `http://model-service:8000`.
-
-The model service communicates with MLflow through `http://mlflow:5000`.
-
-### MLflow experiment tracking
-
-Training records:
-
-- model parameters
-- validation and test metrics
-- dataset/reference metadata
-- configuration
-- Git commit information
-- model artifacts
-- model signatures
-
-The experiment is stored under the `building-energy-phase1` MLflow experiment.
-
-### Model Registry
-
-The registered model is:
-
-`building-energy-forecast`
-
-Current registered versions:
-
-- v1 � Ridge
-- v2 � Random Forest
-- v3 � HistGradientBoosting
-
-The registry therefore provides versioned model artifacts rather than relying only on local `.joblib` files.
-
-### Promotion policy
-
-A learned model is not automatically promoted merely because it is the best learned model.
-
-The promotion process first identifies the best evaluated learned model using validation macro-building NMAE and compares it against the persistence baseline using the same metric.
-
-A learned model is assigned the production alias only if it beats the persistence baseline.
-
-This prevents a weaker learned model from being presented as production-ready.
-
-### Current serving state
-
-The persistence baseline currently remains the serving model because the evaluated learned models did not beat it on validation macro-building NMAE.
-
-The model service therefore supports:
-
-`serving_mode = baseline`
-
-with:
-
-`model_name = persistence`
-
-and:
-
-`model_version = baseline`
-
-This is an intentional lifecycle state, not a deployment error.
-
-### Baseline fallback
-
-When no valid MLflow `@production` alias exists, the model service can serve the persistence baseline.
-
-The baseline prediction uses the most recent observed energy value from the supplied history.
-
-This allows the application to remain operational without bypassing the model-promotion guard.
-
-### Model signatures
-
-The registered v1, v2 and v3 models were verified against the Docker-hosted MLflow server.
-
-Each model exposes a compatible MLflow signature containing the building metadata, weather features, calendar features, lag features, rolling features and degree-hour features required by the forecasting pipeline.
-
-### Verification
-
-Phase 4 verification completed successfully:
-
-- Docker Compose configuration validated.
-- MLflow container healthy.
-- Model service `/health` returned 200 OK.
-- Model service `/ready` returned `ready`.
-- API `/health` returned `ok`.
-- All 20 automated tests passed.
-- Registered model versions and lifecycle tags inspected.
-- MLflow signatures verified for v1, v2 and v3.
-- Real prediction request successfully passed through the running model service.
-- Baseline prediction returned the latest supplied history value.
-
-### Scope boundary
-
-Phase 4 does not implement:
-
-- CI/CD
-- production cloud deployment
-- monitoring and drift detection
-- automated retraining
-- automatic production promotion without evaluation
-
-Those belong to later lifecycle phases.
+This provides a stable foundation for the next engineering stage without introducing monitoring, retraining, or deployment infrastructure prematurely.

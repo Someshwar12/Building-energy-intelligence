@@ -22,6 +22,9 @@ dist
 data
 models
 reports
+!reports/
+!reports/generated/
+!reports/generated/phase1_baseline_results.csv
 notebooks
 
 *.ipynb

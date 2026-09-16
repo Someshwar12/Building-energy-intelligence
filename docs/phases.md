@@ -19,7 +19,9 @@ Application Platform
   ↓
 MLOps & Model Lifecycle
   ↓
-Monitoring & Controlled Retraining
+Monitoring & Observability
+  ↓
+Controlled Retraining
   ↓
 Deployment
 ````
@@ -137,10 +139,10 @@ Random Forest was retained as the ML challenger and as the first deployable ML m
 The project therefore deliberately distinguishes:
 
 ```text
-Production baseline:
+Production benchmark:
 Persistence
 
-ML challenger:
+Initial ML challenger:
 Random Forest
 ```
 
@@ -156,10 +158,10 @@ Phase 1 established:
 
 * reproducible data preparation
 * feature engineering
-* train/test evaluation
+* train/validation/test evaluation
 * baseline comparison
 * model error analysis
-* a versioned ML artifact
+* versioned ML artifacts
 * the initial ML input/output contract
 
 ---
@@ -172,7 +174,7 @@ Phase 1 established:
 
 ## Objective
 
-Turn the Phase 1 Random Forest model into a standalone, validated inference service.
+Turn the Phase 1 ML model into a standalone, validated inference service.
 
 ## Architecture
 
@@ -185,7 +187,7 @@ Request Validation
   ↓
 Feature Construction
   ↓
-Random Forest Model
+ML Model
   ↓
 Prediction Response
 ```
@@ -237,7 +239,7 @@ target timestamp
         ↓
 Phase 1 feature construction
         ↓
-Random Forest inference
+ML inference
 ```
 
 ## Validation
@@ -292,7 +294,7 @@ Node.js / Express
       ↓
 FastAPI ML Service
       ↓
-Phase 1 Random Forest Model
+ML Model
 ```
 
 ## Frontend
@@ -313,6 +315,9 @@ The frontend provides:
 * building metadata
 * historical consumption visualization
 * forecast display
+* anomaly analysis
+* consumption analysis
+* forecast views
 * loading states
 * empty states
 * error states
@@ -329,6 +334,8 @@ Its responsibilities include:
 * historical consumption retrieval
 * prediction context preparation
 * communication with the ML service
+* anomaly analysis
+* model-lifecycle data access
 * application-level error handling
 
 The API separates application concerns from ML inference concerns.
@@ -337,11 +344,11 @@ The API separates application concerns from ML inference concerns.
 
 The application reads the canonical Phase 1 feature dataset and exposes building-level historical consumption through the application API.
 
-The frontend renders the resulting observations using a Recharts-based consumption chart.
+The frontend renders the resulting observations using analytical chart components.
 
 ## Forecast Integration
 
-The application connects the frontend to the Phase 2 ML inference service.
+The application connects the frontend to the ML inference service.
 
 The complete flow is:
 
@@ -356,7 +363,7 @@ Prediction Context
         ↓
 FastAPI /predict
         ↓
-Random Forest
+ML Inference
         ↓
 Forecast Response
         ↓
@@ -379,6 +386,18 @@ Building Profile
 
 The consumption and forecast views are presented together because they form the primary analytical workflow.
 
+## Additional Application Views
+
+The application also provides dedicated analytical views for:
+
+* Buildings
+* Consumption
+* Forecasts
+* Anomalies
+* Model Lab
+
+These views expose the platform's application and ML capabilities without requiring users to interact directly with the underlying services.
+
 ## Validation
 
 Phase 3 passed:
@@ -392,7 +411,7 @@ Phase 3 passed:
 
 ## Scope Boundary
 
-Phase 3 intentionally does not introduce:
+Phase 3 intentionally did not introduce:
 
 * MongoDB
 * Docker
@@ -405,11 +424,11 @@ Phase 3 intentionally does not introduce:
 * CI/CD
 * cloud deployment
 
-These capabilities are reserved for later phases.
+These capabilities were reserved for later phases.
 
 ## Phase 3 Outcome
 
-The project now has a functional application platform:
+The project gained a functional application platform:
 
 ```text
 Web Application
@@ -418,7 +437,7 @@ Application API
       ↓
 ML Inference Service
       ↓
-Machine Learning Model
+Machine Learning
 ```
 
 ---
@@ -427,13 +446,13 @@ Machine Learning Model
 
 ## Status
 
-**Next**
+**Complete**
 
 ## Objective
 
-Introduce reproducible experiment tracking and a controlled model lifecycle.
+Introduce reproducible local infrastructure and ML lifecycle management around the existing Building & Energy Intelligence forecasting system.
 
-The goal is to move from:
+The phase moved the project from:
 
 ```text
 A trained model artifact
@@ -442,71 +461,310 @@ A trained model artifact
 to:
 
 ```text
-A managed model lifecycle
+A managed and evaluation-driven model lifecycle
 ```
 
-## Planned Work
+## Main Work
+
+### Containerization
+
+The application was containerized into four local services:
+
+* Next.js / React web application
+* Node.js / Express application API
+* FastAPI ML inference service
+* MLflow tracking and model registry server
+
+Docker Compose provides the local service network and persistent MLflow storage.
+
+The services run locally on:
+
+```text
+Web              : 3000
+Application API  : 4000
+ML Service       : 8000
+MLflow           : 5000
+```
 
 ### Experiment Tracking
 
-Track:
+MLflow was introduced as the experiment tracking layer.
+
+Training runs record information including:
 
 * experiment configuration
-* dataset version
-* feature configuration
 * model parameters
-* evaluation metrics
-* training timestamp
-* model artifact references
+* validation metrics
+* test metrics
+* dataset/reference information
+* configuration
+* Git commit information
+* model artifacts
+* model signatures
+* model-family metadata
+* validation status
+
+The primary MLflow experiment is:
+
+```text
+building-energy-phase1
+```
 
 ### Model Registry
 
-Introduce model versioning and lifecycle states.
-
-The intended concept is:
+The registered MLflow model is:
 
 ```text
-Experiment
-    ↓
-Candidate Model
-    ↓
+building-energy-forecast
+```
+
+The current registry contains:
+
+| Version | Model                | Lifecycle state |
+| ------- | -------------------- | --------------- |
+| v1      | Ridge                | Evaluated       |
+| v2      | Random Forest        | Rejected        |
+| v3      | HistGradientBoosting | Evaluated       |
+
+All registered versions are in `READY` state.
+
+Version v2 contains explicit rejection metadata documenting that it failed the baseline guard.
+
+No learned model currently has the `@production` alias.
+
+This is intentional.
+
+### Evaluation-Driven Promotion
+
+The promotion workflow does not automatically promote the best learned model.
+
+The process is:
+
+```text
+Training
+   ↓
+MLflow Experiment
+   ↓
 Evaluation
-    ↓
-Registered Model
-    ↓
-Champion / Challenger
+   ↓
+Select Best Learned Candidate
+   ↓
+Compare Against Persistence Baseline
+   ↓
+┌─────────────────────────────┐
+│ Does candidate beat baseline│
+└──────────────┬──────────────┘
+               │
+        ┌──────┴──────┐
+        │             │
+       YES            NO
+        │             │
+        ▼             ▼
+ @production       Reject Candidate
 ```
 
-### Evaluation Gates
-
-A candidate model should not automatically become the production model.
-
-Evaluation should compare it against the existing champion using predefined metrics and validation criteria.
-
-The system should preserve the distinction between:
+The promotion guard uses:
 
 ```text
-Candidate
-Champion
-Challenger
+validation_macro_building_nmae
 ```
 
-### Model Promotion
+as the learned-model evaluation metric.
 
-Model promotion should be controlled and auditable.
+The learned candidate is compared against the persistence baseline using the same metric definition.
 
-A promotion workflow should record:
+This prevents a learned model from being promoted simply because it performs better than other learned models.
 
-* model version
-* evaluation metrics
-* promotion decision
-* timestamp
-* previous champion
-* new champion
+### Current Promotion Result
+
+The current evaluated registry state does not contain a learned production model.
+
+The persistence baseline remains the operational production strategy because no learned candidate passed the baseline guard.
+
+Conceptually:
+
+```text
+Learned production model:
+None
+
+Operational serving strategy:
+Persistence baseline
+```
+
+The system does not artificially assign a production alias merely to populate the registry.
+
+### Baseline-Safe Serving
+
+The model service supports two serving modes:
+
+```text
+Learned mode
+Baseline mode
+```
+
+When no valid learned production model exists, the service serves the persistence baseline.
+
+The current runtime state is:
+
+```text
+model_name    = persistence
+model_version = baseline
+serving_mode  = baseline
+```
+
+Persistence predicts the next-hour energy value using the most recent observed energy value from the supplied historical observations.
+
+This allows the application to remain operational while preserving the evaluation and promotion policy.
+
+### MLflow Model Signature Verification
+
+Registered model versions were verified against the Docker-hosted MLflow server.
+
+The registered models expose the expected forecasting feature contract, including:
+
+* building identifiers and metadata
+* site and primary-use information
+* building area information
+* timezone
+* weather variables
+* calendar features
+* cyclical time features
+* historical energy lag features
+* rolling energy statistics
+* heating degree-hour features
+* cooling degree-hour features
+
+The model output is a numeric prediction tensor.
+
+### Model Service Integration
+
+The model service now obtains its model lifecycle information through MLflow when operating in MLflow mode.
+
+The application architecture therefore becomes:
+
+```text
+Next.js
+   ↓
+Node / Express
+   ↓
+FastAPI ML Service
+   ↓
+MLflow Model Registry
+   ↓
+Registered Model
+```
+
+If no learned production alias is available, the service falls back to the persistence baseline.
+
+### Runtime Verification
+
+The Docker Compose stack was successfully verified with all four services running.
+
+Verified services:
+
+```text
+Web              : 3000
+API              : 4000
+Model Service    : 8000
+MLflow           : 5000
+```
+
+Verified model-service endpoints:
+
+```text
+GET /health
+GET /ready
+POST /predict
+```
+
+The readiness state correctly exposes the active serving strategy.
+
+A real prediction request successfully passed through the containerized inference path.
+
+### Automated Verification
+
+The complete model-service test suite passed:
+
+```text
+20 passed
+```
+
+The remaining HTTPX/Starlette messages were deprecation warnings and did not cause test failures.
+
+## Model Lab
+
+A Model Lab interface was added as an application-level observability surface for the MLflow lifecycle.
+
+It exposes information such as:
+
+* registered model versions
+* model runs
+* lifecycle metadata
+* evaluation metadata
+* baseline information
+* production serving state
+* model metrics
+* model parameters
+* registry state
+
+The Model Lab interface is considered a supporting observability surface rather than a separate ML lifecycle phase.
+
+Further UI/metadata refinement can be performed later if additional MLflow metadata needs to be surfaced.
 
 ## Phase 4 Outcome
 
-The project should gain a reproducible and traceable model lifecycle.
+Phase 4 established the project's first complete local MLOps lifecycle:
+
+```text
+Data
+  ↓
+Feature Engineering
+  ↓
+Training
+  ↓
+MLflow Experiment
+  ↓
+Evaluation
+  ↓
+Model Registry
+  ↓
+Baseline Promotion Guard
+  ↓
+Controlled Lifecycle Decision
+  ↓
+Production / Baseline Serving
+```
+
+The system now has:
+
+* reproducible containerized execution
+* MLflow experiment tracking
+* registered model versions
+* model signatures
+* evaluation metadata
+* controlled promotion
+* baseline-aware rejection
+* safe baseline serving
+* persistent local MLflow storage
+* verified ML inference
+
+## Deferred From Phase 4
+
+The following capabilities remain intentionally outside Phase 4:
+
+* GitHub Actions CI/CD
+* automated data-quality monitoring
+* data drift detection
+* prediction monitoring
+* automated performance monitoring
+* automated retraining
+* retraining triggers
+* cloud deployment
+* Kubernetes
+* large-scale distributed infrastructure
+* large LLM or agent infrastructure
+
+These capabilities belong to later phases only where they provide a concrete engineering benefit.
 
 ---
 
@@ -518,9 +776,9 @@ The project should gain a reproducible and traceable model lifecycle.
 
 ## Objective
 
-Monitor the behavior of the deployed ML system after inference.
+Monitor the behavior of the application and ML system after inference.
 
-Monitoring will cover both the software system and the ML system.
+Monitoring will cover both software-system health and ML-system behavior.
 
 ## Planned Monitoring Areas
 
@@ -534,6 +792,7 @@ Monitor:
 * schema changes
 * timestamp continuity
 * feature availability
+* data freshness
 
 ### Data Drift
 
@@ -546,6 +805,17 @@ Potential areas include:
 * calendar-related distributions
 * building-level input distributions
 
+### Prediction Monitoring
+
+Track:
+
+* prediction volume
+* prediction distributions
+* prediction latency
+* prediction failures
+* active model version
+* serving mode
+
 ### Prediction Performance
 
 When actual future observations become available, compare:
@@ -556,17 +826,20 @@ Predicted Energy
 Actual Energy
 ```
 
-and track metrics over time.
+and calculate relevant forecasting metrics over time.
 
 ### Service Health
 
 Monitor:
 
-* prediction latency
+* request latency
 * request volume
 * error rate
 * service availability
 * model loading status
+* API health
+* ML service readiness
+* MLflow availability
 
 ## Planned Dashboard Information
 
@@ -574,16 +847,20 @@ The application can eventually expose operational ML information such as:
 
 * active model version
 * model status
+* serving mode
 * prediction latency
 * prediction error rate
 * data freshness
 * drift status
 * last successful inference
-* retraining status
+* monitoring status
+* alert state
 
 ## Phase 5 Outcome
 
 The project should become observable rather than simply operational.
+
+The monitoring layer will provide the evidence required for later controlled retraining decisions.
 
 ---
 
@@ -595,7 +872,7 @@ The project should become observable rather than simply operational.
 
 ## Objective
 
-Introduce a controlled process for updating models when new data becomes available or model performance deteriorates.
+Introduce a controlled process for updating models when new data becomes available or when model performance deteriorates.
 
 ## Planned Workflow
 
@@ -612,7 +889,7 @@ Training
    ↓
 Evaluation
    ↓
-Compare Against Champion
+Compare Against Current Champion / Baseline
    ↓
 Promotion Decision
 ```
@@ -628,14 +905,32 @@ Retraining should not automatically replace the existing production model withou
 * evaluation gates
 * promotion rules
 * rollback capability
+* retraining history
+* explicit lifecycle decisions
+
+## Retraining Trigger Concept
+
+A retraining workflow may eventually be triggered by conditions such as:
+
+```text
+New Data Available
+        OR
+Sustained Performance Degradation
+        OR
+Data / Feature Distribution Change
+```
+
+The trigger itself should not bypass evaluation.
+
+The resulting model must pass the same lifecycle controls before becoming a production candidate.
 
 ## Phase 6 Outcome
 
-The ML system gains a controlled model update lifecycle.
+The ML system gains a controlled model-update lifecycle rather than relying on manual replacement of model artifacts.
 
 ---
 
-# Phase 7 — Containerization & Deployment
+# Phase 7 — Deployment & Production Delivery
 
 ## Status
 
@@ -643,21 +938,46 @@ The ML system gains a controlled model update lifecycle.
 
 ## Objective
 
-Package the application and ML services into reproducible deployable units.
+Make the containerized platform reproducibly deployable outside the local development environment.
 
 ## Planned Work
 
-* Dockerize frontend
-* Dockerize application API
-* Dockerize ML service
-* establish service configuration
-* establish environment-specific configuration
-* compose local services
-* introduce deployment configuration
-* establish CI/CD pipeline
-* deploy the application
+* deployment configuration
+* environment-specific configuration
+* production secrets/configuration handling
+* container image management
+* CI/CD pipeline
+* automated quality gates
+* deployment workflow
+* deployment health checks
+* rollback strategy
+* cloud deployment
 
-## Target Architecture
+## CI/CD
+
+The deployment phase can introduce automated checks such as:
+
+```text
+Git Push
+   ↓
+Automated Tests
+   ↓
+Lint / Type Checks
+   ↓
+Build
+   ↓
+Container Image Build
+   ↓
+Deployment Validation
+   ↓
+Deployment
+```
+
+Model-specific deployment should remain subject to the evaluation and promotion policy established in Phase 4.
+
+## Production Architecture
+
+The target architecture is:
 
 ```text
                     ┌──────────────────┐
@@ -681,15 +1001,17 @@ Package the application and ML services into reproducible deployable units.
                     └──────────────────┘
 ```
 
+Monitoring and lifecycle infrastructure will operate alongside the application services.
+
 ## Phase 7 Outcome
 
-The system becomes reproducibly deployable.
+The system becomes reproducibly deployable with automated engineering quality gates and a defined production delivery process.
 
 ---
 
 # Final Project Progression
 
-The intended progression of the project is:
+The completed and planned project progression is:
 
 ```text
 PHASE 0
@@ -714,35 +1036,42 @@ PHASE 6
 Controlled Retraining
         ↓
 PHASE 7
-Containerization + Deployment
+Deployment + Production Delivery
 ```
 
-The key engineering principle is that each phase builds on the previous one without prematurely introducing infrastructure that is not yet required.
+The current completed scope is:
 
-At the completion of Phase 3, the project has progressed from a data and ML pipeline into a functional end-to-end application.
+```text
+Phase 0  ✓
+Phase 1  ✓
+Phase 2  ✓
+Phase 3  ✓
+Phase 4  ✓
+Phase 5  → Planned
+Phase 6  → Planned
+Phase 7  → Planned
+```
 
-The next major engineering step is therefore **Phase 4 — MLOps and Model Lifecycle Engineering**.
-## Phase 4 Completion
+The project has therefore progressed from a raw building-energy dataset to a containerized application with a validated ML inference service and a managed ML lifecycle.
 
-Phase 4 is complete.
+The current system is intentionally local and CPU-first.
 
-Delivered:
+Future phases will add monitoring, controlled retraining, and deployment only when those capabilities solve concrete engineering requirements.
 
-- Dockerized web application
-- Dockerized Node API
-- Dockerized FastAPI model service
-- Dockerized MLflow server
-- Persistent MLflow storage through Docker volume
-- MLflow experiment tracking
-- MLflow Model Registry
-- Model versioning
-- Candidate evaluation
-- Baseline-aware promotion guard
-- Baseline-safe inference fallback
-- MLflow model signature verification
-- End-to-end prediction verification
-- Automated test verification
+The key engineering principle remains:
 
-The system can now run as a reproducible local multi-service application with an explicit ML lifecycle.
+```text
+Build
+  ↓
+Validate
+  ↓
+Measure
+  ↓
+Document
+  ↓
+Commit
+  ↓
+Add the next layer
+```
 
-Next phase: CI/testing infrastructure and production-quality quality gates.
+Each phase should preserve the contracts and engineering decisions established by the previous phase rather than introducing unnecessary complexity prematurely.

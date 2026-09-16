@@ -131,6 +131,41 @@ def clear_alias_if_present(
         )
 
 
+def set_guard_metadata(
+    client: MlflowClient,
+    version: int,
+    baseline_name: str,
+    baseline_metric: float,
+) -> None:
+    client.set_model_version_tag(
+        REGISTERED_MODEL_NAME,
+        str(version),
+        "baseline_model",
+        baseline_name,
+    )
+
+    client.set_model_version_tag(
+        REGISTERED_MODEL_NAME,
+        str(version),
+        "baseline_guard_metric",
+        "macro_building_nmae",
+    )
+
+    client.set_model_version_tag(
+        REGISTERED_MODEL_NAME,
+        str(version),
+        "baseline_guard_reference_nmae",
+        f"{baseline_metric:.6f}",
+    )
+
+    client.set_model_version_tag(
+        REGISTERED_MODEL_NAME,
+        str(version),
+        "promotion_metric",
+        VALIDATION_METRIC,
+    )
+
+
 def main() -> None:
     mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
 
@@ -190,7 +225,7 @@ def main() -> None:
     print(f"Baseline: {baseline_name}")
 
     print(
-        f"Baseline validation NMAE: "
+        f"Baseline guard reference NMAE: "
         f"{baseline_metric:.6f}"
     )
 
@@ -222,25 +257,11 @@ def main() -> None:
             "passed",
         )
 
-        client.set_model_version_tag(
-            REGISTERED_MODEL_NAME,
-            str(best_ml_model.version),
-            "baseline_model",
+        set_guard_metadata(
+            client,
+            best_ml_model.version,
             baseline_name,
-        )
-
-        client.set_model_version_tag(
-            REGISTERED_MODEL_NAME,
-            str(best_ml_model.version),
-            "baseline_validation_nmae",
-            f"{baseline_metric:.6f}",
-        )
-
-        client.set_model_version_tag(
-            REGISTERED_MODEL_NAME,
-            str(best_ml_model.version),
-            "promotion_metric",
-            VALIDATION_METRIC,
+            baseline_metric,
         )
 
         clear_alias_if_present(
@@ -281,18 +302,11 @@ def main() -> None:
             "failed",
         )
 
-        client.set_model_version_tag(
-            REGISTERED_MODEL_NAME,
-            str(best_ml_model.version),
-            "baseline_model",
+        set_guard_metadata(
+            client,
+            best_ml_model.version,
             baseline_name,
-        )
-
-        client.set_model_version_tag(
-            REGISTERED_MODEL_NAME,
-            str(best_ml_model.version),
-            "baseline_validation_nmae",
-            f"{baseline_metric:.6f}",
+            baseline_metric,
         )
 
         client.set_model_version_tag(
@@ -301,8 +315,8 @@ def main() -> None:
             "rejection_reason",
             (
                 "Learned model did not beat the "
-                "persistence baseline on validation "
-                "macro-building NMAE."
+                "persistence baseline on the recorded "
+                "macro-building NMAE guard reference."
             ),
         )
 

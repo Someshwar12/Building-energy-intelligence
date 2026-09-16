@@ -57,7 +57,7 @@ Phase 0
 Project Foundation
       ↓
 Phase 1
-Data + Features + ML Baseline
+Data + Features + ML Foundation
       ↓
 Phase 2
 ML Inference Service
@@ -70,6 +70,7 @@ MLOps + Model Lifecycle
 ````
 
 ---
+
 ## Decision 003 — Keep the System CPU-First
 
 **Status:** Accepted
@@ -103,7 +104,13 @@ The core platform will not depend on LLMs, autonomous agents, or transformer mod
 
 ### Reason
 
-The project is intended to demonstrate conventional ML, data engineering, inference, application architecture, and MLOps skills.
+The project is intended to demonstrate:
+
+* conventional ML
+* data engineering
+* inference
+* application architecture
+* MLOps
 
 The central problem is building-energy intelligence rather than adding an LLM merely for demonstration purposes.
 
@@ -129,13 +136,13 @@ The baseline therefore remains part of model evaluation even after introducing m
 
 ---
 
-## Decision 006 — Retain Random Forest as the Initial ML Challenger
+## Decision 006 — Retain Random Forest as the Initial Learned Challenger
 
 **Status:** Accepted
 
 ### Decision
 
-Random Forest is retained as the initial deployable ML challenger even though persistence performed better in the Phase 1 benchmark.
+Random Forest is retained as the initial learned ML challenger even though persistence performed better in the Phase 1 benchmark.
 
 ### Reason
 
@@ -146,14 +153,14 @@ Random Forest was nevertheless retained because it provides a genuine learned mo
 This distinction is important:
 
 ```text
-Production benchmark champion:
+Benchmark Baseline:
 Persistence
 
-Initial learned model:
+Initial Learned Model:
 Random Forest
 ```
 
-The Random Forest model must not be described as the overall Phase 1 performance champion.
+Random Forest must not be described as the overall Phase 1 performance champion.
 
 ---
 
@@ -191,7 +198,7 @@ Inference
 
 ### Decision
 
-The current Random Forest inference contract requires exactly 168 consecutive hourly observations preceding the prediction timestamp.
+The forecasting inference contract requires 168 hourly historical observations preceding the prediction timestamp.
 
 ### Reason
 
@@ -218,7 +225,7 @@ Express
    ↓
 FastAPI
    ↓
-ML Model
+ML Serving Layer
 ```
 
 ### Reason
@@ -276,6 +283,8 @@ The application layer needs to coordinate:
 * historical consumption
 * prediction context
 * ML-service communication
+* anomaly analysis
+* ML lifecycle information
 
 Express provides a lightweight service boundary without introducing unnecessary infrastructure at the current stage.
 
@@ -299,17 +308,17 @@ Repositories
 
 ### Reason
 
-This prevents route handlers from becoming responsible for data access and business/application logic simultaneously.
+This prevents route handlers from becoming responsible for data access and application logic simultaneously.
 
 For example:
 
 ```text
 Route
- ↓
+  ↓
 Prediction Service
- ↓
+  ↓
 Prediction Repository
- ↓
+  ↓
 FastAPI
 ```
 
@@ -337,7 +346,7 @@ Parquet provides:
 
 * columnar storage
 * efficient analytical access
-* a compact representation
+* compact representation
 * compatibility with Python data workflows
 
 It also keeps the early system simple without requiring a database before one is necessary.
@@ -440,7 +449,7 @@ Express API
         ↓
 FastAPI / Pydantic
         ↓
-ML Model
+ML Serving
 ```
 
 ---
@@ -469,19 +478,19 @@ This turns assumptions in the model pipeline into explicit API constraints.
 
 ---
 
-## Decision 019 — Load the Model at Service Startup
+## Decision 019 — Load the Serving Configuration at Service Startup
 
 **Status:** Accepted
 
 ### Decision
 
-The FastAPI ML service loads the model artifact during application startup.
+The FastAPI ML service initializes its serving configuration during application startup.
 
 ### Reason
 
-Loading the model for every request would introduce unnecessary overhead.
+Loading and configuring the serving path for every request would introduce unnecessary overhead.
 
-Startup loading also provides an explicit readiness state.
+Startup initialization also provides an explicit readiness state.
 
 The service exposes:
 
@@ -490,7 +499,21 @@ The service exposes:
 /ready
 ```
 
-so that basic service health and model readiness can be distinguished.
+so that basic service health and serving readiness can be distinguished.
+
+The serving layer can resolve either:
+
+```text
+MLflow-managed learned model
+```
+
+or:
+
+```text
+Persistence baseline
+```
+
+depending on the current lifecycle state.
 
 ---
 
@@ -509,7 +532,7 @@ model_version
 
 ### Reason
 
-Predictions should be traceable to the model that produced them.
+Predictions should be traceable to the serving strategy and model version that produced them.
 
 This becomes increasingly important once the platform introduces:
 
@@ -519,7 +542,14 @@ This becomes increasingly important once the platform introduces:
 * monitoring
 * retraining
 
-The current model reports the Phase 1 version.
+The current baseline-serving state reports:
+
+```text
+model_name = persistence
+model_version = baseline
+```
+
+when no learned model owns the production alias.
 
 ---
 
@@ -613,11 +643,15 @@ This makes it possible to attach experiment tracking, model management, monitori
 
 ## Decision 024 — Use Champion / Challenger Model Lifecycle
 
-**Status:** Planned
+**Status:** Implemented as lifecycle concept
 
 ### Decision
 
-Future model lifecycle management will distinguish between a production champion and candidate challengers.
+The model lifecycle distinguishes between:
+
+* evaluated learned candidates
+* a production model when one qualifies
+* the persistence baseline when no learned model qualifies
 
 The intended lifecycle is:
 
@@ -630,49 +664,660 @@ Challenger
    ↓
 Promotion Gate
    ↓
-Champion
+Production Model
 ```
 
 ### Reason
 
-The Phase 1 results already demonstrated why this distinction matters.
+The Phase 1 results demonstrated why this distinction matters.
 
-A newer or more complex model should not automatically replace an existing model.
+A newer or more complex model should not automatically replace an existing serving strategy.
 
 Promotion should depend on predefined evaluation criteria.
 
+Phase 4 implemented the registry, candidate evaluation, and promotion-gate infrastructure required for this lifecycle.
+
 ---
 
-## Decision 025 — Add Experiment Tracking Before Automated Retraining
+## Decision 025 — Use MLflow as the Lifecycle Authority
 
-**Status:** Planned
+**Status:** Accepted
 
 ### Decision
 
-Experiment tracking and model version management should be established before automated retraining is introduced.
+MLflow is the lifecycle authority for:
+
+* experiment tracking
+* registered model versions
+* model artifacts
+* lifecycle metadata
+* model signatures
 
 ### Reason
 
-Automated retraining without traceability makes it difficult to determine:
+Model lifecycle state should not depend solely on local `.joblib` files.
 
-* which data produced a model
-* which parameters were used
-* which evaluation results were obtained
-* why a model was promoted
+MLflow provides a central local registry for the Dockerized system while preserving model lineage and version information.
 
-The lifecycle should therefore preserve experiment and model lineage before automation is added.
+Local model files remain useful for development and historical artifacts, but the Dockerized lifecycle path uses MLflow.
 
 ---
 
-## Decision 026 — Monitoring Will Cover Both Data and Model Performance
+## Decision 026 — Record Reproducibility Metadata
 
-**Status:** Planned
+**Status:** Accepted
 
 ### Decision
 
+Training runs should record sufficient metadata to make experiments traceable.
+
+Tracked information includes:
+
+* parameters
+* validation metrics
+* test metrics
+* dataset/reference metadata
+* configuration
+* Git commit information
+* model artifacts
+* model signatures
+
+### Reason
+
+A model should be traceable to the experiment and source state that produced it.
+
+This establishes the foundation required for reliable model comparison and future retraining.
+
+---
+
+## Decision 027 — Compare Learned Models Against a Common Baseline
+
+**Status:** Accepted
+
+### Decision
+
+The persistence baseline remains part of the model evaluation and promotion process.
+
+### Reason
+
+A learned model should not be promoted merely because it performs better than other learned models.
+
+The system must determine whether the learned candidate provides sufficient improvement over a simple operational benchmark.
+
+The comparison must use the same evaluation criterion on both sides.
+
+---
+
+## Decision 028 — Use a Baseline-Aware Promotion Guard
+
+**Status:** Accepted
+
+### Decision
+
+The promotion system must compare the best evaluated learned model against the persistence baseline using the same promotion metric.
+
+The current promotion metric is:
+
+```text
+validation_macro_building_nmae
+```
+
+The intended decision is:
+
+```text
+Best Evaluated Learned Model
+            ↓
+Validation Macro-Building NMAE
+            ↓
+Compare with Persistence
+            ↓
+        Baseline Guard
+          /       \
+       PASS       FAIL
+        ↓           ↓
+   Production    Reject
+```
+
+### Reason
+
+The system must not compare incompatible metrics.
+
+In particular, a learned model's macro-building NMAE must not be compared against an aggregate baseline NMAE.
+
+This prevents a metric-definition mismatch from causing an invalid promotion decision.
+
+---
+
+## Decision 029 — Do Not Force a Learned Model into Production
+
+**Status:** Accepted
+
+### Decision
+
+A learned model is not promoted simply to populate the production alias.
+
+### Reason
+
+The evaluation process must be allowed to conclude that the baseline is currently preferable.
+
+If no learned candidate beats the persistence baseline under the defined promotion criterion:
+
+```text
+No learned production model
+        ↓
+Persistence remains operational
+```
+
+This preserves the integrity of the evaluation process.
+
+---
+
+## Decision 030 — Keep Persistence as an Operational Fallback
+
+**Status:** Accepted
+
+### Decision
+
+When no valid learned production alias exists, the model service serves the persistence baseline.
+
+### Reason
+
+The application should remain operational even when no learned candidate qualifies for production.
+
+The persistence strategy uses the most recent observed energy value as the next-hour prediction.
+
+The current serving state is therefore:
+
+```text
+serving_mode = baseline
+model_name = persistence
+model_version = baseline
+```
+
+This is an intentional lifecycle state rather than a deployment error.
+
+---
+
+## Decision 031 — Register Learned Models in MLflow
+
+**Status:** Accepted
+
+### Decision
+
+Learned model artifacts are registered in the MLflow Model Registry under:
+
+```text
+building-energy-forecast
+```
+
+The current registered versions are:
+
+```text
+v1 — Ridge
+v2 — Random Forest
+v3 — HistGradientBoosting
+```
+
+### Reason
+
+Registry versioning provides a persistent representation of evaluated model artifacts and their lifecycle metadata.
+
+This makes model history inspectable without relying only on filenames in the local `models/` directory.
+
+---
+
+## Decision 032 — Record Rejected Candidates Explicitly
+
+**Status:** Accepted
+
+### Decision
+
+A learned model that fails the promotion guard should remain visible in the registry with an explicit rejected lifecycle state rather than being silently deleted.
+
+### Reason
+
+Rejected candidates are useful for understanding:
+
+* which model was evaluated
+* why it was evaluated
+* which promotion criterion was used
+* why it was not promoted
+
+This creates an auditable model lifecycle.
+
+The current registry contains a rejected Random Forest candidate alongside other evaluated learned versions.
+
+---
+
+## Decision 033 — Verify MLflow Model Signatures
+
+**Status:** Accepted
+
+### Decision
+
+Registered model versions must expose compatible MLflow input signatures.
+
+### Reason
+
+Model signatures provide an explicit representation of the model's expected input contract.
+
+The registered versions were verified against the Docker-hosted MLflow server.
+
+The signatures cover the feature categories required by the forecasting pipeline, including:
+
+* building metadata
+* weather features
+* calendar features
+* lag features
+* rolling features
+* degree-hour features
+
+This provides an additional safeguard against model/inference contract mismatch.
+
+---
+
+## Decision 034 — Keep the Model-Service Image Focused
+
+**Status:** Accepted
+
+### Decision
+
+When operating through the MLflow lifecycle, the model-service image should not bundle the complete local dataset or local model directory.
+
+### Reason
+
+The serving image should contain the inference application and its required dependencies while retrieving lifecycle-managed model artifacts through MLflow.
+
+This keeps the serving image focused on:
+
+```text
+Inference Code
++
+Dependencies
++
+Serving Configuration
+```
+
+rather than duplicating the complete development environment.
+
+---
+
+## Decision 035 — Use Docker Compose for Local Reproducibility
+
+**Status:** Accepted
+
+### Decision
+
+Use Docker Compose to run the local application stack.
+
+The current services are:
+
+```text
+Web
+API
+Model Service
+MLflow
+```
+
+### Reason
+
+Docker Compose provides reproducible service boundaries and networking without introducing unnecessary cloud infrastructure.
+
+The local service communication is:
+
+```text
+Browser
+   ↓
+Web :3000
+   ↓
+API :4000
+   ↓
+Model Service :8000
+   ↓
+MLflow :5000
+```
+
+MLflow state is persisted through the Docker volume:
+
+```text
+mlflow-data
+```
+
+---
+
+## Decision 036 — Keep Infrastructure Local-First
+
+**Status:** Accepted
+
+### Decision
+
+Docker Compose and MLflow are intentionally used as a local reproducibility layer before introducing cloud infrastructure.
+
+### Reason
+
+The project is designed to prove the engineering workflow locally first.
+
+Cloud deployment, Kubernetes, distributed infrastructure, and other operational complexity should be introduced only when the local lifecycle is stable and there is a genuine requirement for them.
+
+---
+
+## Decision 037 — Keep Model Lifecycle Separate from the Frontend
+
+**Status:** Accepted
+
+### Decision
+
+The frontend should observe model lifecycle information through the application API rather than directly controlling MLflow.
+
+### Reason
+
+The frontend is a presentation layer.
+
+The model lifecycle belongs to the ML/service layer.
+
+The intended boundary is:
+
+```text
+Model Lifecycle
+      ↓
+FastAPI
+      ↓
+Express API
+      ↓
+Model Lab UI
+```
+
+This prevents the frontend from becoming coupled to MLflow implementation details.
+
+---
+
+## Decision 038 — Introduce Model Lab as an Observability Surface
+
+**Status:** Accepted
+
+### Decision
+
+Provide a dedicated Model Lab interface for inspecting model lifecycle information.
+
+The Model Lab surface exposes information such as:
+
+* registered versions
+* model families
+* evaluation status
+* rejection status
+* run information
+* metrics
+* parameters
+* baseline information
+* production/serving state
+
+### Reason
+
+The project should make the model lifecycle visible rather than treating MLflow as hidden infrastructure.
+
+Model Lab is an observability surface.
+
+It is not itself the authority that decides model promotion.
+
+---
+
+## Decision 039 — Keep Anomaly Detection Separate from Forecasting
+
+**Status:** Accepted
+
+### Decision
+
+Anomaly detection is implemented as a separate application capability rather than modifying the forecasting model.
+
+### Reason
+
+Forecasting and anomaly detection answer different questions:
+
+```text
+Forecasting
+"What energy use should occur next?"
+
+Anomaly Detection
+"Does this observed energy use look unusual?"
+```
+
+Separating the two allows each capability to evolve independently.
+
+The current anomaly service uses historical consumption behavior and a rolling statistical detection approach.
+
+---
+
+## Decision 040 — Keep the Application Database-Free for the Current Scope
+
+**Status:** Accepted
+
+### Decision
+
+Do not introduce an application database merely to support the current dashboard and lifecycle views.
+
+### Reason
+
+The current system can operate using:
+
+* processed Parquet data
+* application metadata
+* MLflow storage
+* model artifacts
+
+A database can be introduced later if the application develops a genuine requirement for persistent operational state.
+
+---
+
+## Decision 041 — Validate the Complete System at Phase Boundaries
+
+**Status:** Accepted
+
+### Decision
+
+Each phase should finish with implementation verification and documentation before the next major phase begins.
+
+### Reason
+
+The project is intended to demonstrate a reproducible engineering process rather than simply a final collection of code.
+
+The expected workflow is:
+
+```text
+Implement
+   ↓
+Run
+   ↓
+Inspect
+   ↓
+Verify
+   ↓
+Document
+   ↓
+Git Checkpoint
+   ↓
+Next Phase
+```
+
+---
+
+## Decision 042 — Phase 4 Stops at Controlled Model Serving
+
+**Status:** Accepted
+
+### Decision
+
+Phase 4 ends after establishing:
+
+```text
+Training
+   ↓
+Experiment Tracking
+   ↓
+Model Registry
+   ↓
+Evaluation
+   ↓
+Baseline Guard
+   ↓
+Controlled Serving
+```
+
+### Reason
+
+Phase 4 establishes the model lifecycle foundation without prematurely implementing every future MLOps capability.
+
+The following are intentionally deferred:
+
+* GitHub Actions CI/CD
+* automated monitoring
+* data drift detection
+* prediction-performance monitoring
+* automated retraining
+* automated production promotion without evaluation
+* cloud deployment
+* Kubernetes
+* distributed infrastructure
+* large-scale LLM or agent infrastructure
+
+These should be introduced only when their corresponding lifecycle requirements are reached.
+
+---
+
+# Current Architecture Decision Summary
+
+The decisions made through Phase 4 establish the following architecture:
+
+```text
+                    ┌──────────────────────┐
+                    │      Next.js         │
+                    │       React          │
+                    └──────────┬───────────┘
+                               │
+                               ▼
+                    ┌──────────────────────┐
+                    │      Express         │
+                    │   Application API    │
+                    └──────────┬───────────┘
+                               │
+                               ▼
+                    ┌──────────────────────┐
+                    │       FastAPI        │
+                    │    ML Inference      │
+                    └──────────┬───────────┘
+                               │
+                    ┌──────────┴───────────┐
+                    │                      │
+                    ▼                      ▼
+             Persistence             MLflow
+              Baseline                 │
+                                       ▼
+                                Model Registry
+                                       │
+                                       ▼
+                                Evaluation Gate
+                                       │
+                                       ▼
+                                Promotion Decision
+```
+
+The architecture is intentionally simple enough to run locally while providing explicit boundaries for future MLOps capabilities.
+
+---
+
+# Phase 4 Final Decision State
+
+Phase 4 established the following decisions as the current operating state:
+
+```text
+MLflow
+  ↓
+Lifecycle Authority
+
+Persistence
+  ↓
+Benchmark Baseline
+
+Learned Models
+  ↓
+Evaluated Challengers
+
+Baseline Guard
+  ↓
+Required for Promotion
+
+No Qualifying Learned Model
+  ↓
+Persistence Serving
+
+Docker Compose
+  ↓
+Local Reproducibility
+
+Model Lab
+  ↓
+Lifecycle Observability
+```
+
+The current system therefore does not force a learned model into production.
+
+The persistence baseline remains operational when no learned candidate satisfies the promotion criterion.
+
+This is a deliberate lifecycle decision.
+
+---
+
+# Future Decisions — Planned
+
+## Decision 043 — Add Continuous Quality Gates
+
+**Status:** Planned
+
+Future phases should introduce automated quality gates for:
+
+* tests
+* linting
+* type checking
+* data validation
+* model validation
+* build verification
+
+The purpose is to prevent known regressions from entering the main branch or deployment pipeline.
+
+---
+
+## Decision 044 — Introduce CI After Local Validation Is Stable
+
+**Status:** Planned
+
+GitHub Actions should be introduced after the local test and build workflow is stable.
+
+The intended flow is:
+
+```text
+Git Push
+   ↓
+CI
+   ↓
+Tests
+   ↓
+Lint / Type Checks
+   ↓
+Build
+   ↓
+Quality Gate
+```
+
+CI should automate verification rather than replace local development.
+
+---
+
+## Decision 045 — Monitor Both Data and Model Performance
+
+**Status:** Planned
+
 Future monitoring will consider both input-data behavior and model performance.
 
-The planned architecture includes:
+The planned architecture is:
 
 ```text
 Input Data
@@ -692,6 +1337,7 @@ Potential monitoring areas include:
 * forecast errors
 * data drift
 * model degradation
+* service health
 
 ### Reason
 
@@ -699,11 +1345,9 @@ A model can remain technically available while becoming less useful because the 
 
 ---
 
-## Decision 027 — Retraining Must Be Controlled
+## Decision 046 — Retraining Must Be Controlled
 
 **Status:** Planned
-
-### Decision
 
 Future retraining will not automatically promote every newly trained model.
 
@@ -718,103 +1362,83 @@ Candidate Training
    ↓
 Evaluation
    ↓
-Promotion Gate
+Baseline / Production Gate
    ↓
-Champion
+Promotion Decision
+   ↓
+Serving
 ```
 
 ### Reason
 
 Automated training and automated deployment are separate decisions.
 
-A candidate model must demonstrate that it is suitable before replacing the current champion.
+A newly trained candidate must demonstrate that it is suitable before replacing the current serving strategy.
 
 ---
 
-# Current Architecture Decision Summary
+## Decision 047 — Preserve Existing Service Boundaries During Future Expansion
 
-The decisions made through Phase 3 establish the following architecture:
+**Status:** Planned
+
+Future infrastructure should preserve the current boundaries unless there is a clear engineering reason to change them.
+
+The current boundaries are:
 
 ```text
-                 ┌──────────────────────┐
-                 │      Next.js         │
-                 │       React          │
-                 └──────────┬───────────┘
-                            │
-                            ▼
-                 ┌──────────────────────┐
-                 │      Express         │
-                 │   Application API    │
-                 └──────────┬───────────┘
-                            │
-                            ▼
-                 ┌──────────────────────┐
-                 │       FastAPI        │
-                 │    ML Inference      │
-                 └──────────┬───────────┘
-                            │
-                            ▼
-                 ┌──────────────────────┐
-                 │   Random Forest      │
-                 │    Phase 1 Model     │
-                 └──────────────────────┘
+Next.js
+   ↓
+Express
+   ↓
+FastAPI
+   ↓
+MLflow / Model Serving
 ```
 
-The architecture is intentionally simple at this stage.
+### Reason
 
-Its purpose is to provide a stable foundation for the next engineering layer:
+The current separation provides a stable foundation for:
+
+* CI
+* monitoring
+* drift detection
+* retraining
+* deployment
+
+Future additions should extend these boundaries rather than introduce unnecessary architectural rewrites.
+
+---
+
+# Final Engineering Principle
+
+The project follows one overarching rule:
 
 ```text
-Experiment Tracking
-        ↓
-Model Registry
-        ↓
-Model Promotion
-        ↓
+Do not add infrastructure because it sounds impressive.
+
+Add infrastructure when the system has a real engineering requirement for it.
+```
+
+The platform should therefore evolve from:
+
+```text
+Data
+ ↓
+ML
+ ↓
+Inference
+ ↓
+Application
+ ↓
+Lifecycle
+ ↓
+Quality
+ ↓
 Monitoring
-        ↓
-Drift Detection
-        ↓
-Controlled Retraining
-        ↓
+ ↓
+Retraining
+ ↓
 Deployment
 ```
 
-Future infrastructure must preserve the existing service boundaries unless there is a clear engineering reason to change them.
-## Phase 4 Decisions
-
-### MLflow as lifecycle authority
-
-MLflow is used for experiment tracking, registered model versions and lifecycle metadata.
-
-Local model files remain useful for development and historical artifacts, but Dockerized MLflow serving is the intended lifecycle path.
-
-### Baseline guard
-
-The persistence baseline must be compared using the same evaluation metric as the learned candidate.
-
-The promotion system must not compare a learned model's macro-building NMAE against the baseline's aggregate NMAE.
-
-This prevents a metric-definition mismatch from causing an invalid promotion decision.
-
-### No forced production model
-
-A learned model is not promoted simply to populate the production alias.
-
-If no learned candidate beats the baseline, the system remains in baseline serving mode.
-
-This preserves the integrity of the evaluation process.
-
-### Docker model-service contents
-
-The model-service image does not bundle the local `models/` or dataset directories when running in MLflow mode.
-
-The service retrieves its lifecycle-managed model from MLflow instead.
-
-This keeps the serving image focused on inference code and dependencies.
-
-### Local-first infrastructure
-
-Docker Compose and MLflow are intentionally used as a local reproducibility layer.
-
-Cloud deployment and additional infrastructure are deferred until the local lifecycle is stable and justified.
+with each layer introduced only after the previous layer is sufficiently validated.

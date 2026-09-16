@@ -13,6 +13,11 @@ from .config import (
     SERVICE_VERSION,
 )
 from .inference import InferenceService
+from .model_lab import (
+    get_model_lab_runs,
+    get_model_lab_summary,
+    get_model_lab_versions,
+)
 from .model_loader import ModelLoader
 from .schemas import PredictionRequest, PredictionResponse
 
@@ -103,6 +108,64 @@ def ready() -> dict[str, str]:
     }
 
 
+@app.get("/model-lab/summary")
+def model_lab_summary() -> dict:
+    try:
+        return get_model_lab_summary(
+            tracking_uri=MLFLOW_TRACKING_URI,
+            model_name=MLFLOW_MODEL_NAME,
+            model_alias=MLFLOW_MODEL_ALIAS,
+        )
+    except Exception as exc:
+        logger.exception(
+            "Failed to load Model Lab summary",
+        )
+        raise HTTPException(
+            status_code=500,
+            detail="Model Lab summary unavailable.",
+        ) from exc
+
+
+@app.get("/model-lab/versions")
+def model_lab_versions() -> dict:
+    try:
+        return {
+            "model_name": MLFLOW_MODEL_NAME,
+            "versions": get_model_lab_versions(
+                tracking_uri=MLFLOW_TRACKING_URI,
+                model_name=MLFLOW_MODEL_NAME,
+            ),
+        }
+    except Exception as exc:
+        logger.exception(
+            "Failed to load Model Lab versions",
+        )
+        raise HTTPException(
+            status_code=500,
+            detail="Model Lab versions unavailable.",
+        ) from exc
+
+
+@app.get("/model-lab/runs")
+def model_lab_runs() -> dict:
+    try:
+        return {
+            "model_name": MLFLOW_MODEL_NAME,
+            "runs": get_model_lab_runs(
+                tracking_uri=MLFLOW_TRACKING_URI,
+                model_name=MLFLOW_MODEL_NAME,
+            ),
+        }
+    except Exception as exc:
+        logger.exception(
+            "Failed to load Model Lab runs",
+        )
+        raise HTTPException(
+            status_code=500,
+            detail="Model Lab runs unavailable.",
+        ) from exc
+
+
 @app.post(
     "/predict",
     response_model=PredictionResponse,
@@ -135,7 +198,9 @@ def predict(
         logger.warning(
             "Prediction request rejected: %s",
             exc,
-            extra={"building_id": request.building_id},
+            extra={
+                "building_id": request.building_id,
+            },
         )
 
         raise HTTPException(
@@ -146,7 +211,9 @@ def predict(
     except Exception as exc:
         logger.exception(
             "Unexpected prediction failure",
-            extra={"building_id": request.building_id},
+            extra={
+                "building_id": request.building_id,
+            },
         )
 
         raise HTTPException(

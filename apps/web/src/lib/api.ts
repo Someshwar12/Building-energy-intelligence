@@ -163,3 +163,98 @@ export async function getBuildingAnomalies(
     )}/anomalies${query ? `?${query}` : ""}`,
   );
 }
+
+export type ModelVersion = {
+  version: string;
+  model_name: string;
+  run_id: string;
+  status: string;
+  aliases: string[];
+  description: string | null;
+  created_at: number | null;
+  updated_at: number | null;
+  model_family: string | null;
+  validation_status: string | null;
+  lifecycle_status: string | null;
+  promotion_metric: string | null;
+  promotion_reason: string | null;
+  baseline_guard: string | null;
+  baseline_model: string | null;
+  baseline_validation_nmae: string | null;
+  rejection_reason: string | null;
+  metrics: Record<string, number>;
+  params: Record<string, string>;
+  tags: Record<string, string>;
+};
+
+export type BaselineResult = {
+  baseline: string;
+  metrics: Record<string, number>;
+};
+
+export type ModelLabBaseline = {
+  available: boolean;
+  name: string;
+  display_name: string;
+  strategy: string;
+  metrics: Record<string, number>;
+  all_baselines: BaselineResult[];
+  source: string | null;
+};
+
+export type ModelLabSummary = {
+  model_name: string;
+  production: {
+    model_name: string;
+    version: string;
+    alias: string | null;
+    run_id: string | null;
+    serving_mode: string;
+  };
+  candidate: {
+    version: string;
+    model_family: string | null;
+  } | null;
+  baseline: ModelLabBaseline;
+  registered_versions: number;
+  evaluated_versions: number;
+  rejected_versions: number;
+  versions: ModelVersion[];
+};
+
+export type ModelLabRun = {
+  run_id: string;
+  experiment_id: string;
+  status: string;
+  start_time: number | null;
+  end_time: number | null;
+  params: Record<string, string>;
+  metrics: Record<string, number>;
+  tags: Record<string, string>;
+};
+
+export async function getModelLabSummary(): Promise<ModelLabSummary> {
+  return request<ModelLabSummary>(
+    "/api/model-lab/summary",
+  );
+}
+
+export async function getModelLabVersions(): Promise<{
+  model_name: string;
+  versions: ModelVersion[];
+}> {
+  return request<{
+    model_name: string;
+    versions: ModelVersion[];
+  }>("/api/model-lab/versions");
+}
+
+export async function getModelLabRuns(): Promise<{
+  model_name: string;
+  runs: ModelLabRun[];
+}> {
+  return request<{
+    model_name: string;
+    runs: ModelLabRun[];
+  }>("/api/model-lab/runs");
+}
