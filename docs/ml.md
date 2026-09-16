@@ -555,3 +555,50 @@ The exact promotion criteria will be defined during the MLOps/model-lifecycle ph
 ```
 
 The current ML layer is therefore complete enough to support an end-to-end application while remaining deliberately separate from the MLOps infrastructure planned for subsequent phases.
+## Phase 4 ML Lifecycle
+
+Phase 4 moved the trained models from local artifacts into an explicit ML lifecycle.
+
+### Registered models
+
+MLflow contains three registered versions:
+
+- v1 — Ridge
+- v2 — Random Forest
+- v3 — HistGradientBoosting
+
+All three versions have verified MLflow input signatures.
+
+### Evaluation-driven promotion
+
+The best learned model is selected using validation macro-building NMAE.
+
+The persistence baseline is evaluated using the same metric before promotion.
+
+A candidate is rejected when it does not beat the baseline.
+
+Current result:
+
+- Persistence baseline remains the serving strategy.
+- Random Forest is the strongest learned model under the learned-model comparison, but it does not pass the baseline guard.
+- No learned model currently receives the `@production` alias.
+
+### Serving modes
+
+The model service supports two conceptual modes:
+
+`learned`
+
+A registered MLflow model is loaded through the production alias.
+
+`baseline`
+
+The persistence baseline is served when no valid production model is available.
+
+This distinction keeps model evaluation and deployment decisions separate.
+
+### Inference contract
+
+The inference service builds the same feature family used during training from the supplied building metadata, weather context and historical energy observations.
+
+MLflow signatures were verified against the registered models to confirm compatibility with this feature contract.

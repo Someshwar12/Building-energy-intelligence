@@ -593,3 +593,14 @@ The current strategy deliberately prioritizes correctness, reproducibility, and 
 The data layer is now sufficient to support the completed Phase 1 ML pipeline and the Phase 3 end-to-end application.
 
 Future phases will extend it toward operational data ingestion, monitoring, and automated ML lifecycle management.
+## Phase 4 Data & Reproducibility Notes
+
+The Phase 1 feature dataset remains the source used for model training and evaluation.
+
+Phase 4 adds reproducibility metadata around the ML lifecycle rather than changing the underlying dataset.
+
+Training records the relevant configuration, dataset/reference information and Git state alongside MLflow runs.
+
+The serving contract uses the same feature semantics established during Phase 1, including historical lag and rolling features.
+
+The model service requires sufficient historical observations to construct the inference feature vector and validates the request before prediction.

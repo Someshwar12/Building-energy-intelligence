@@ -847,3 +847,116 @@ Retraining
 ```
 
 The current Phase 3 architecture is designed to accommodate these capabilities without requiring the frontend or application API to directly manage the machine-learning lifecycle.
+## Phase 4 — Reproducibility, MLflow & Model Lifecycle
+
+Phase 4 introduced reproducible local infrastructure and ML lifecycle management around the existing forecasting system.
+
+### Containerized architecture
+
+The application now runs locally through Docker Compose as four services:
+
+- Web — React / Next.js
+- API — Node / Express
+- Model Service — FastAPI
+- MLflow — experiment tracking and model registry
+
+The browser-facing API uses `http://localhost:4000`, while the API communicates with the model service through the Compose network at `http://model-service:8000`.
+
+The model service communicates with MLflow through `http://mlflow:5000`.
+
+### MLflow experiment tracking
+
+Training records:
+
+- model parameters
+- validation and test metrics
+- dataset/reference metadata
+- configuration
+- Git commit information
+- model artifacts
+- model signatures
+
+The experiment is stored under the `building-energy-phase1` MLflow experiment.
+
+### Model Registry
+
+The registered model is:
+
+`building-energy-forecast`
+
+Current registered versions:
+
+- v1 — Ridge
+- v2 — Random Forest
+- v3 — HistGradientBoosting
+
+The registry therefore provides versioned model artifacts rather than relying only on local `.joblib` files.
+
+### Promotion policy
+
+A learned model is not automatically promoted merely because it is the best learned model.
+
+The promotion process first identifies the best evaluated learned model using validation macro-building NMAE and compares it against the persistence baseline using the same metric.
+
+A learned model is assigned the production alias only if it beats the persistence baseline.
+
+This prevents a weaker learned model from being presented as production-ready.
+
+### Current serving state
+
+The persistence baseline currently remains the serving model because the evaluated learned models did not beat it on validation macro-building NMAE.
+
+The model service therefore supports:
+
+`serving_mode = baseline`
+
+with:
+
+`model_name = persistence`
+
+and:
+
+`model_version = baseline`
+
+This is an intentional lifecycle state, not a deployment error.
+
+### Baseline fallback
+
+When no valid MLflow `@production` alias exists, the model service can serve the persistence baseline.
+
+The baseline prediction uses the most recent observed energy value from the supplied history.
+
+This allows the application to remain operational without bypassing the model-promotion guard.
+
+### Model signatures
+
+The registered v1, v2 and v3 models were verified against the Docker-hosted MLflow server.
+
+Each model exposes a compatible MLflow signature containing the building metadata, weather features, calendar features, lag features, rolling features and degree-hour features required by the forecasting pipeline.
+
+### Verification
+
+Phase 4 verification completed successfully:
+
+- Docker Compose configuration validated.
+- MLflow container healthy.
+- Model service `/health` returned 200 OK.
+- Model service `/ready` returned `ready`.
+- API `/health` returned `ok`.
+- All 20 automated tests passed.
+- Registered model versions and lifecycle tags inspected.
+- MLflow signatures verified for v1, v2 and v3.
+- Real prediction request successfully passed through the running model service.
+- Baseline prediction returned the latest supplied history value.
+
+### Scope boundary
+
+Phase 4 does not implement:
+
+- CI/CD
+- production cloud deployment
+- monitoring and drift detection
+- automated retraining
+- automatic production promotion without evaluation
+
+Those belong to later lifecycle phases.

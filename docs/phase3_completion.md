@@ -583,8 +583,6 @@ The current implementation should therefore be understood as an **application-le
 
 A later production-oriented implementation will connect the prediction workflow to continuously refreshed observations and explicitly distinguish historical inference from live forecasting.
 
----
-
 ## Phase 3 Outcome
 
 Phase 3 successfully converts the project from a standalone ML pipeline and inference service into a functional application platform.

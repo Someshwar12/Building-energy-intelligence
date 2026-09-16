@@ -781,3 +781,40 @@ Deployment
 ```
 
 Future infrastructure must preserve the existing service boundaries unless there is a clear engineering reason to change them.
+## Phase 4 Decisions
+
+### MLflow as lifecycle authority
+
+MLflow is used for experiment tracking, registered model versions and lifecycle metadata.
+
+Local model files remain useful for development and historical artifacts, but Dockerized MLflow serving is the intended lifecycle path.
+
+### Baseline guard
+
+The persistence baseline must be compared using the same evaluation metric as the learned candidate.
+
+The promotion system must not compare a learned model's macro-building NMAE against the baseline's aggregate NMAE.
+
+This prevents a metric-definition mismatch from causing an invalid promotion decision.
+
+### No forced production model
+
+A learned model is not promoted simply to populate the production alias.
+
+If no learned candidate beats the baseline, the system remains in baseline serving mode.
+
+This preserves the integrity of the evaluation process.
+
+### Docker model-service contents
+
+The model-service image does not bundle the local `models/` or dataset directories when running in MLflow mode.
+
+The service retrieves its lifecycle-managed model from MLflow instead.
+
+This keeps the serving image focused on inference code and dependencies.
+
+### Local-first infrastructure
+
+Docker Compose and MLflow are intentionally used as a local reproducibility layer.
+
+Cloud deployment and additional infrastructure are deferred until the local lifecycle is stable and justified.
