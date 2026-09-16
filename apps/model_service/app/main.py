@@ -3,14 +3,29 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException
 
-from .config import MODEL_PATH, SERVICE_NAME, SERVICE_VERSION
+from .config import (
+    MLFLOW_MODEL_ALIAS,
+    MLFLOW_MODEL_NAME,
+    MLFLOW_TRACKING_URI,
+    MODEL_PATH,
+    MODEL_SOURCE,
+    SERVICE_NAME,
+    SERVICE_VERSION,
+)
 from .inference import InferenceService
 from .model_loader import ModelLoader
 from .schemas import PredictionRequest, PredictionResponse
 
 logger = logging.getLogger(__name__)
 
-model_loader = ModelLoader(MODEL_PATH)
+model_loader = ModelLoader(
+    model_path=MODEL_PATH,
+    tracking_uri=MLFLOW_TRACKING_URI,
+    model_name=MLFLOW_MODEL_NAME,
+    model_alias=MLFLOW_MODEL_ALIAS,
+    model_source=MODEL_SOURCE,
+)
+
 inference_service = InferenceService(model_loader)
 
 
@@ -20,11 +35,20 @@ async def lifespan(app: FastAPI):
         "Initializing model service",
         extra={
             "service": SERVICE_NAME,
-            "model_path": str(MODEL_PATH),
+            "model_source": MODEL_SOURCE,
+            "model_name": MLFLOW_MODEL_NAME,
+            "model_alias": MLFLOW_MODEL_ALIAS,
         },
     )
 
-    model_loader.initialize()
+    try:
+        model_loader.initialize()
+    except Exception:
+        logger.exception(
+            "Model initialization failed",
+            extra={"service": SERVICE_NAME},
+        )
+        raise
 
     logger.info(
         "Model loaded successfully",
@@ -32,6 +56,7 @@ async def lifespan(app: FastAPI):
             "service": SERVICE_NAME,
             "model_name": model_loader.model_name,
             "model_version": model_loader.model_version,
+            "serving_mode": model_loader.serving_mode,
         },
     )
 
@@ -74,6 +99,7 @@ def ready() -> dict[str, str]:
         "status": "ready",
         "model_name": model_loader.model_name,
         "model_version": model_loader.model_version,
+        "serving_mode": model_loader.serving_mode,
     }
 
 

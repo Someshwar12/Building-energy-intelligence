@@ -28,6 +28,14 @@ services:
       dockerfile: docker/model-service.Dockerfile
     ports:
       - "8000:8000"
+    environment:
+      MLFLOW_TRACKING_URI: http://mlflow:5000
+      MLFLOW_MODEL_NAME: building-energy-forecast
+      MLFLOW_MODEL_ALIAS: production
+      MODEL_SOURCE: mlflow
+    depends_on:
+      mlflow:
+        condition: service_healthy
 
   mlflow:
     build:
@@ -37,6 +45,18 @@ services:
       - "5000:5000"
     volumes:
       - mlflow-data:/mlflow
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:5000/')",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
 volumes:
   mlflow-data:

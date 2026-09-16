@@ -15,6 +15,17 @@ class InferenceService:
         self.model_loader = model_loader
 
     def predict(self, request: PredictionRequest) -> PredictionResponse:
+        if getattr(self.model_loader, "serving_mode", "learned") == "baseline":
+            latest_energy = request.history[-1].energy_kwh
+
+            return PredictionResponse(
+                building_id=request.building_id,
+                timestamp=request.timestamp,
+                predicted_energy_kwh=latest_energy,
+                model_name=self.model_loader.model_name,
+                model_version=self.model_loader.model_version,
+            )
+
         features = self._build_features(request)
 
         feature_frame = pd.DataFrame(

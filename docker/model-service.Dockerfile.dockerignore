@@ -1,7 +1,5 @@
 .git
-.gitignore
 .venv
-
 __pycache__
 *.pyc
 .pytest_cache
@@ -21,11 +19,10 @@ dist
 .env.*
 !.env.example
 
-data/raw
-data/interim
-
-notebooks
+data
+models
 reports
+notebooks
 
 *.ipynb
 *.log

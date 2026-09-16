@@ -39,7 +39,6 @@ from ml.training.train import (
     save_artifact,
 )
 
-
 EXCLUDED_FEATURE_COLUMNS = {
     "timestamp",
     "energy_kwh",
@@ -544,6 +543,7 @@ def main() -> None:
                         cfg.horizon_hours
                     ),
                     "git_commit": get_git_commit(),
+                    "feature_columns": features,
                 },
             )
 

@@ -8,8 +8,6 @@ ENV PYTHONUNBUFFERED=1
 COPY pyproject.toml ./
 COPY ml ./ml
 COPY apps/model_service ./apps/model_service
-COPY models ./models
-COPY data ./data
 
 RUN pip install --no-cache-dir --upgrade pip \
     && pip install --no-cache-dir .
