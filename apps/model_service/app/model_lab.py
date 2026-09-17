@@ -4,7 +4,9 @@ from pathlib import Path
 from typing import Any
 
 import mlflow
+import pandas as pd
 from mlflow import MlflowClient
+from mlflow.exceptions import MlflowException
 
 BASELINE_REPORT_PATH = (
     Path(__file__).resolve().parents[3]
@@ -95,8 +97,6 @@ def _load_baseline_results() -> list[dict[str, Any]]:
         return []
 
     try:
-        import pandas as pd
-
         dataframe = pd.read_csv(BASELINE_REPORT_PATH)
 
         results: list[dict[str, Any]] = []
@@ -127,7 +127,12 @@ def _load_baseline_results() -> list[dict[str, Any]]:
 
         return results
 
-    except Exception:
+    except (
+        OSError,
+        UnicodeDecodeError,
+        pd.errors.EmptyDataError,
+        pd.errors.ParserError,
+    ):
         return []
 
 
@@ -147,7 +152,10 @@ def _baseline_payload() -> dict[str, Any]:
         "available": persistence is not None,
         "name": "persistence",
         "display_name": "Persistence",
-        "strategy": "Use the latest observed energy value as the next-hour prediction.",
+        "strategy": (
+            "Use the latest observed energy value "
+            "as the next-hour prediction."
+        ),
         "metrics": (
             persistence["metrics"]
             if persistence
@@ -183,7 +191,7 @@ def get_model_lab_summary(
             "serving_mode": "mlflow",
         }
 
-    except Exception:
+    except MlflowException:
         production_payload = {
             "model_name": "persistence",
             "version": "baseline",
