@@ -45,6 +45,7 @@ def _version_payload(
 ) -> dict[str, Any]:
     run = client.get_run(model_version.run_id)
 
+    params = dict(run.data.params)
     tags = dict(run.data.tags)
 
     aliases = list(
@@ -61,7 +62,11 @@ def _version_payload(
         "description": model_version.description,
         "created_at": model_version.creation_timestamp,
         "updated_at": model_version.last_updated_timestamp,
-        "model_family": tags.get("model_family"),
+        "model_family": (
+            tags.get("model_family")
+            or params.get("model_family")
+            or params.get("model_name")
+        ),
         "validation_status": tags.get(
             "validation_status",
         ),
@@ -87,7 +92,7 @@ def _version_payload(
             "rejection_reason",
         ),
         "metrics": dict(run.data.metrics),
-        "params": dict(run.data.params),
+        "params": params,
         "tags": tags,
     }
 

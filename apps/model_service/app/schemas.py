@@ -30,7 +30,10 @@ class PredictionRequest(BaseModel):
 
     @field_validator("history")
     @classmethod
-    def validate_history(cls, history: list[EnergyObservation]) -> list[EnergyObservation]:
+    def validate_history(
+        cls,
+        history: list[EnergyObservation],
+    ) -> list[EnergyObservation]:
         timestamps = [item.timestamp for item in history]
 
         if len(set(timestamps)) != len(timestamps):
@@ -48,3 +51,9 @@ class PredictionResponse(BaseModel):
     predicted_energy_kwh: float
     model_name: str
     model_version: str
+
+
+class PerformanceOutcomeRequest(BaseModel):
+    building_id: str = Field(min_length=1)
+    timestamp: datetime
+    actual_energy_kwh: float = Field(ge=0)

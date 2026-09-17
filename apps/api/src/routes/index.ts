@@ -5,6 +5,7 @@ import { consumptionRouter } from "./consumption.js";
 import { predictionsRouter } from "./predictions.js";
 import { anomaliesRouter } from "./anomalies.js";
 import { modelLabRouter } from "./modelLab.js";
+import { monitoringRouter } from "./monitoring.js";
 
 export const router = Router();
 
@@ -13,3 +14,4 @@ router.use("/", consumptionRouter);
 router.use("/", predictionsRouter);
 router.use("/", anomaliesRouter);
 router.use("/", modelLabRouter);
+router.use("/", monitoringRouter);

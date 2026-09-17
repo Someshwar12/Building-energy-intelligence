@@ -28,7 +28,11 @@ const navigation = [
   {
     label: "Model Lab",
     href: "/model-lab",
-  }
+  },
+  {
+    label: "Monitoring",
+    href: "/monitoring",
+  },
 ];
 
 function isActive(

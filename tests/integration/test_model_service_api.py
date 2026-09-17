@@ -17,34 +17,34 @@ class FakeLoader:
     model_version = "phase5-test"
     serving_mode = "learned"
     feature_columns = (
-    "building_id",
-    "site_id",
-    "primary_use",
-    "square_feet",
-    "floor_area",
-    "air_temperature",
-    "dew_temperature",
-    "sea_level_pressure",
-    "wind_direction",
-    "wind_speed",
-    "cloud_coverage",
-    "precip_depth_1_hr",
-    "hour",
-    "day_of_week",
-    "day_of_month",
-    "month",
-    "week_of_year",
-    "is_weekend",
-    "lag_1",
-    "lag_24",
-    "lag_168",
-    "rolling_mean_24",
-    "rolling_std_24",
-    "rolling_mean_168",
-    "rolling_std_168",
-    "heating_degree_hours",
-    "cooling_degree_hours",
-)
+        "building_id",
+        "site_id",
+        "primary_use",
+        "square_feet",
+        "floor_area",
+        "air_temperature",
+        "dew_temperature",
+        "sea_level_pressure",
+        "wind_direction",
+        "wind_speed",
+        "cloud_coverage",
+        "precip_depth_1_hr",
+        "hour",
+        "day_of_week",
+        "day_of_month",
+        "month",
+        "week_of_year",
+        "is_weekend",
+        "lag_1",
+        "lag_24",
+        "lag_168",
+        "rolling_mean_24",
+        "rolling_std_24",
+        "rolling_mean_168",
+        "rolling_std_168",
+        "heating_degree_hours",
+        "cooling_degree_hours",
+    )
     model = FakeModel()
 
     def initialize(self):
@@ -87,6 +87,11 @@ def client(monkeypatch):
         "inference_service",
         InferenceService(loader),
     )
+    monkeypatch.setattr(
+        main_module,
+        "performance_state",
+        main_module.PerformanceState(),
+    )
 
     with TestClient(main_module.app) as test_client:
         yield test_client
@@ -106,6 +111,11 @@ def unready_client(monkeypatch):
         "inference_service",
         InferenceService(loader),
     )
+    monkeypatch.setattr(
+        main_module,
+        "performance_state",
+        main_module.PerformanceState(),
+    )
 
     with TestClient(main_module.app) as test_client:
         yield test_client
@@ -124,6 +134,11 @@ def baseline_client(monkeypatch):
         main_module,
         "inference_service",
         InferenceService(loader),
+    )
+    monkeypatch.setattr(
+        main_module,
+        "performance_state",
+        main_module.PerformanceState(),
     )
 
     with TestClient(main_module.app) as test_client:
@@ -308,3 +323,201 @@ def test_predict_endpoint_uses_baseline_serving_mode(
     assert body["predicted_energy_kwh"] == 267.0
     assert body["model_name"] == "persistence"
     assert body["model_version"] == "baseline"
+
+
+def test_prediction_creates_pending_performance_observation(
+    client,
+):
+    response = client.post(
+        "/predict",
+        json=make_payload(),
+    )
+
+    assert response.status_code == 200
+
+    summary = client.get(
+        "/monitoring/summary"
+    ).json()
+
+    assert summary["monitoring"]["performance"] == {
+        "pending_predictions": 1,
+        "completed_outcomes": 0,
+    }
+
+
+def test_outcome_records_prediction_error(client):
+    payload = make_payload()
+
+    prediction_response = client.post(
+        "/predict",
+        json=payload,
+    )
+
+    assert prediction_response.status_code == 200
+
+    outcome_response = client.post(
+        "/monitoring/outcomes",
+        json={
+            "building_id": "test_building",
+            "timestamp": payload["timestamp"],
+            "actual_energy_kwh": 120.0,
+        },
+    )
+
+    assert outcome_response.status_code == 200
+
+    body = outcome_response.json()
+
+    assert body["status"] == "recorded"
+    assert body["outcome"]["prediction"] == pytest.approx(
+        123.45
+    )
+    assert body["outcome"]["actual"] == pytest.approx(
+        120.0
+    )
+    assert body["outcome"]["persistence_baseline"] == pytest.approx(
+        267.0
+    )
+    assert body["outcome"]["absolute_error"] == pytest.approx(
+        3.45
+    )
+    assert body["outcome"]["squared_error"] == pytest.approx(
+        3.45**2
+    )
+    assert body["outcome"]["model_version"] == "phase5-test"
+    assert body["outcome"]["serving_mode"] == "learned"
+
+    summary = client.get(
+        "/monitoring/summary"
+    ).json()
+
+    assert summary["monitoring"]["performance"] == {
+        "pending_predictions": 0,
+        "completed_outcomes": 1,
+    }
+
+
+def test_outcome_requires_existing_prediction(client):
+    response = client.post(
+        "/monitoring/outcomes",
+        json={
+            "building_id": "unknown_building",
+            "timestamp": (
+                datetime(
+                    2020,
+                    1,
+                    1,
+                    tzinfo=UTC,
+                ).isoformat()
+            ),
+            "actual_energy_kwh": 100.0,
+        },
+    )
+
+    assert response.status_code == 404
+
+
+def test_outcome_rejects_negative_actual_energy(client):
+    response = client.post(
+        "/monitoring/outcomes",
+        json={
+            "building_id": "test_building",
+            "timestamp": (
+                datetime(
+                    2020,
+                    1,
+                    1,
+                    tzinfo=UTC,
+                ).isoformat()
+            ),
+            "actual_energy_kwh": -1.0,
+        },
+    )
+
+    assert response.status_code == 422
+
+def test_performance_endpoint_reports_metrics(client):
+    payload = make_payload()
+
+    prediction_response = client.post(
+        "/predict",
+        json=payload,
+    )
+    assert prediction_response.status_code == 200
+
+    outcome_response = client.post(
+        "/monitoring/outcomes",
+        json={
+            "building_id": payload["building_id"],
+            "timestamp": payload["timestamp"],
+            "actual_energy_kwh": 120.0,
+        },
+    )
+    assert outcome_response.status_code == 200
+
+    response = client.get("/monitoring/performance")
+    assert response.status_code == 200
+
+    body = response.json()
+    assert body["status"] == "insufficient_data"
+    assert body["sample_count"] == 1
+    assert body["recent"]["mae"] == pytest.approx(3.45)
+    assert body["comparison"]["beats_baseline"] is True
+
+
+def test_performance_endpoint_detects_baseline_underperformance(client):
+    for index in range(90):
+        payload = make_payload()
+
+        timestamp = (
+            datetime(2018, 1, 1, tzinfo=UTC)
+            + timedelta(hours=index)
+        )
+
+        payload["timestamp"] = timestamp.isoformat()
+
+        history_start = timestamp - timedelta(hours=168)
+
+        payload["history"] = [
+            {
+                "timestamp": (
+                    history_start + timedelta(hours=hour)
+                ).isoformat(),
+                "energy_kwh": 100.0,
+            }
+            for hour in range(168)
+        ]
+
+        prediction_response = client.post(
+            "/predict",
+            json=payload,
+        )
+
+        assert prediction_response.status_code == 200
+
+        outcome_response = client.post(
+            "/monitoring/outcomes",
+            json={
+                "building_id": payload["building_id"],
+                "timestamp": payload["timestamp"],
+                "actual_energy_kwh": 100.0,
+            },
+        )
+
+        assert outcome_response.status_code == 200
+
+    response = client.get("/monitoring/performance")
+
+    assert response.status_code == 200
+
+    body = response.json()
+
+    assert body["status"] == "degraded"
+    assert body["degradation"]["sustained_degradation"] is True
+    assert body["degradation"]["completed_windows"] == 3
+    assert body["degradation"]["degraded_windows"] == 3
+
+
+def test_performance_endpoint_rejects_invalid_window(client):
+    response = client.get("/monitoring/performance?recent_window=0")
+    assert response.status_code == 400

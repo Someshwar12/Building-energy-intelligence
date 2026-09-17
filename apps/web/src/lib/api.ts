@@ -258,3 +258,70 @@ export async function getModelLabRuns(): Promise<{
     runs: ModelLabRun[];
   }>("/api/model-lab/runs");
 }
+
+export type MonitoringSummaryData = {
+  service: {
+    name: string;
+    version: string;
+    status: string;
+    model_name: string;
+    model_version: string;
+    serving_mode: string;
+  };
+  monitoring: {
+    requests: {
+      total: number;
+      successful: number;
+      failed: number;
+    };
+    latency_ms: {
+      sample_count: number;
+      average: number | null;
+      p50: number | null;
+      p95: number | null;
+      p99: number | null;
+    };
+    model_versions: Record<string, number>;
+    serving_modes: Record<string, number>;
+    data_quality: Record<string, number>;
+    last_prediction_at: string | null;
+    last_error_at: string | null;
+    last_error: string | null;
+  };
+};
+
+export type MonitoringDriftFeature = {
+  feature: string;
+  psi: number | null;
+  status: string;
+  sample_count: number;
+  minimum_sample_count: number;
+};
+
+export type MonitoringDrift = {
+  status: string;
+  sample_count: number;
+  minimum_sample_count: number;
+  thresholds: {
+    warning_psi: number;
+    critical_psi: number;
+  };
+  reference: {
+    available: boolean;
+    feature_count: number;
+    source: string | null;
+  };
+  features: Record<string, MonitoringDriftFeature>;
+};
+
+export async function getMonitoringSummary(): Promise<MonitoringSummaryData> {
+  return request<MonitoringSummaryData>(
+    "/api/monitoring/summary",
+  );
+}
+
+export async function getMonitoringDrift(): Promise<MonitoringDrift> {
+  return request<MonitoringDrift>(
+    "/api/monitoring/drift",
+  );
+}

@@ -12,6 +12,12 @@ The architecture separates:
 - application-level orchestration
 - frontend presentation
 - ML lifecycle management
+- testing and continuous integration
+- operational monitoring
+- data-quality monitoring
+- drift detection
+- model-performance monitoring
+- service health
 
 The system is developed incrementally so that each layer can be implemented, tested, validated, and documented before additional complexity is introduced.
 
@@ -20,27 +26,45 @@ The current implemented architecture is:
 ```text
                          Building & Energy Intelligence
                                       │
-        ┌─────────────────────────────┼─────────────────────────────┐
-        │                             │                             │
-        ▼                             ▼                             ▼
-   Data / ML                     Application                  ML Lifecycle
-   Development                    Platform                    Management
-        │                             │                             │
-        ▼                             ▼                             ▼
-   BDG2 Dataset                  Next.js / React               MLflow
-        │                             │                             │
-        ▼                             ▼                             ▼
-   Feature Dataset               Express API              Model Registry
-        │                             │                             │
-        ▼                             ▼                             ▼
-   ML Training                  FastAPI ML Service          Evaluation Gates
-        │                             │                             │
-        ▼                             ▼                             ▼
-   Model Artifacts                 Inference              Promotion Guard
-                                      │                             │
-                                      └──────────────┬──────────────┘
-                                                     ▼
-                                             Serving Decision
+          ┌───────────────────────────┼───────────────────────────┐
+          │                           │                           │
+          ▼                           ▼                           ▼
+     Data / ML                   Application                ML Lifecycle
+     Development                  Platform                   Management
+          │                           │                           │
+          ▼                           ▼                           ▼
+      BDG2 Dataset              Next.js / React               MLflow
+          │                           │                           │
+          ▼                           ▼                           ▼
+    Feature Dataset             Express API               Model Registry
+          │                           │                           │
+          ▼                           ▼                           ▼
+     ML Training             FastAPI ML Service          Evaluation Gates
+          │                           │                           │
+          ▼                           │                           ▼
+    Model Artifacts                   │                  Promotion Guard
+          │                           │                           │
+          └───────────────┐           │           ┌───────────────┘
+                          ▼           ▼           ▼
+                         Serving Decision
+                                │
+                                ▼
+                         Monitoring Layer
+                    ┌───────────┼───────────┐
+                    │           │           │
+                    ▼           ▼           ▼
+                 Data       Drift       Performance
+                Quality    Detection     Monitoring
+                    │           │           │
+                    └───────────┼───────────┘
+                                ▼
+                         Service Health
+                                │
+                                ▼
+                    Sustained Degradation
+                                │
+                                ▼
+                     Phase 6 Eligibility
 ````
 
 ---
@@ -67,6 +91,8 @@ The application API is responsible for:
 * historical consumption access
 * prediction-context preparation
 * communication with the ML service
+* anomaly analysis
+* application-level ML lifecycle access
 
 The ML service is responsible for:
 
@@ -75,6 +101,9 @@ The ML service is responsible for:
 * model loading
 * inference
 * prediction response
+* monitoring instrumentation
+* model lifecycle information
+* performance and drift evaluation
 
 MLflow is responsible for:
 
@@ -82,6 +111,15 @@ MLflow is responsible for:
 * model artifact registration
 * model versioning
 * lifecycle metadata
+
+The monitoring layer is responsible for:
+
+* prediction observations
+* data-quality signals
+* drift signals
+* performance observations
+* degradation analysis
+* service-health signals
 
 The ML model itself remains isolated from the application presentation layer.
 
@@ -100,7 +138,7 @@ Express API
    ↓
 FastAPI ML Service
    ↓
-ML Model
+ML Model / Serving Strategy
 ```
 
 This creates a stable application boundary and allows the ML implementation to evolve independently from the user interface.
@@ -112,11 +150,27 @@ Training / Evaluation
         ↓
       MLflow
         ↓
-Model Registry
+  Model Registry
         ↓
-Promotion Decision
+ Promotion Decision
         ↓
 FastAPI Serving
+```
+
+Monitoring is connected to the serving lifecycle but does not directly control model promotion or retraining:
+
+```text
+Prediction
+    ↓
+Monitoring
+    ├── Data Quality
+    ├── Drift
+    ├── Performance
+    └── Service Health
+             ↓
+      Degradation Evidence
+             ↓
+      Phase 6 Eligibility
 ```
 
 ---
@@ -135,6 +189,8 @@ The FastAPI service remains responsible for:
 * model loading
 * inference
 * prediction response
+* serving-mode identification
+* monitoring instrumentation
 
 This avoids duplicating ML logic across application layers.
 
@@ -161,6 +217,8 @@ ML Inference
 ```
 
 This preserves feature parity between training and inference and reduces the risk of training-serving skew.
+
+The monitoring layer reuses the same relevant feature definitions when constructing monitoring observations.
 
 ---
 
@@ -229,9 +287,11 @@ Evaluation
 Model Artifact
       ↓
 MLflow Tracking
+      ↓
+Model Registry
 ```
 
-The initial evaluated models include:
+The evaluated models include:
 
 * Persistence
 * Ridge Regression
@@ -240,25 +300,29 @@ The initial evaluated models include:
 
 The persistence model is retained as the primary benchmark baseline.
 
-Random Forest was retained as the initial learned ML challenger and deployable model artifact.
+The learned models are evaluated independently against the persistence baseline.
 
-The local artifact is:
+A learned model is not considered the production model simply because it is the strongest learned model.
 
-```text
-models/random_forest_phase1.joblib
-```
-
-The project distinguishes between:
+The project therefore distinguishes between:
 
 ```text
 Benchmark Baseline
 Persistence
 
-Learned ML Challenger
+Learned ML Models
+Ridge
 Random Forest
+HistGradientBoosting
 ```
 
-A learned model is not considered the production model simply because it is the strongest learned model.
+Local model artifacts are stored under:
+
+```text
+models/
+```
+
+MLflow provides the versioned registry representation used by the lifecycle layer.
 
 ---
 
@@ -280,6 +344,8 @@ GET  /health
 GET  /ready
 ```
 
+It also provides monitoring and Model Lab endpoints.
+
 The inference flow is:
 
 ```text
@@ -296,6 +362,8 @@ Serving Strategy
 Learned Model OR Persistence Baseline
       ↓
 Structured Prediction Response
+      ↓
+Monitoring Instrumentation
 ```
 
 The service loads the required model configuration at startup and exposes an explicit readiness state.
@@ -323,7 +391,7 @@ This establishes the contract:
 ```text
 Training Feature Definition
           ↓
-       ML Model
+        ML Model
           ↑
           │
 Same Feature Definition
@@ -439,6 +507,23 @@ It does not perform training or independently decide which model becomes product
 
 ---
 
+## Monitoring
+
+The application exposes monitoring information through the model-service monitoring endpoints and application integration.
+
+The monitoring layer provides information about:
+
+* prediction observations
+* data quality
+* drift
+* model performance
+* degradation state
+* service health
+
+Monitoring does not automatically retrain or replace models.
+
+---
+
 # Application Data Flow
 
 ## Building Discovery
@@ -517,6 +602,37 @@ Forecast UI
 
 ---
 
+## Monitoring
+
+```text
+Prediction Request
+      ↓
+FastAPI
+      ↓
+Prediction
+      ↓
+Monitoring State
+      ├── Prediction Record
+      ├── Data Quality
+      ├── Drift Signals
+      ├── Service Health
+      └── Model Identity
+               ↓
+       Actual Outcome Available
+               ↓
+       Performance Observation
+               ↓
+       Rolling Metrics
+               ↓
+       Degradation Evaluation
+```
+
+Monitoring observations are operational events and are separate from the historical training dataset.
+
+A monitoring observation represents a recorded prediction event, not a building or a historical dataset row.
+
+---
+
 # Frontend Architecture
 
 The frontend is located at:
@@ -549,7 +665,9 @@ apps/web/src/app/
 │   └── page.tsx
 ├── anomalies/
 │   └── page.tsx
-└── model-lab/
+├── model-lab/
+│   └── page.tsx
+└── monitoring/
     └── page.tsx
 ```
 
@@ -574,6 +692,7 @@ The client provides typed interfaces for application responses including:
 * ModelVersion
 * ModelLabSummary
 * ModelLabRun
+* Monitoring data
 
 ---
 
@@ -663,6 +782,27 @@ The interface is intentionally treated as an observability layer rather than as 
 
 ---
 
+## Monitoring
+
+The Monitoring page provides operational visibility into the prediction system.
+
+It surfaces information such as:
+
+* service status
+* prediction observations
+* serving model identity
+* serving mode
+* data-quality signals
+* feature drift
+* model performance
+* persistence-baseline comparison
+* degradation state
+* recent monitoring information
+
+The Monitoring page is intended to answer operational questions about the current prediction system without modifying its lifecycle state.
+
+---
+
 # Repository Layer
 
 The Node application uses repositories to isolate data access from application logic.
@@ -719,7 +859,7 @@ The Model Lab service encapsulates communication between the application API and
 
 # ML Lifecycle Architecture
 
-Phase 4 introduced MLflow as the lifecycle management layer.
+MLflow provides the lifecycle management layer.
 
 The lifecycle is:
 
@@ -741,6 +881,8 @@ Baseline Guard
 Lifecycle Decision
   ↓
 Serving
+  ↓
+Monitoring
 ```
 
 The system therefore separates:
@@ -751,6 +893,8 @@ Model Development
 Model Management
         ↓
 Model Serving
+        ↓
+Operational Monitoring
 ```
 
 ---
@@ -812,6 +956,8 @@ Persistence Baseline
 
 This is intentional.
 
+The strongest learned candidate is not promoted when it fails the persistence-baseline guard.
+
 ---
 
 # Evaluation-Driven Promotion
@@ -833,12 +979,12 @@ Compare Against Persistence Baseline
           ↓
        Baseline Guard
           │
-     ┌────┴────┐
-     │         │
-   PASS       FAIL
-     │         │
-     ▼         ▼
-Production   Rejected
+       ┌──┴──┐
+       │     │
+     PASS   FAIL
+       │     │
+       ▼     ▼
+ Production Rejected
 ```
 
 The learned-model promotion metric is:
@@ -857,13 +1003,13 @@ This prevents the system from promoting a learned model simply because it outper
 
 The current promotion guard selected Random Forest v2 as the strongest evaluated learned candidate.
 
-Its validation macro-building NMAE is:
+Its validation macro-building NMAE is approximately:
 
 ```text
 0.128728
 ```
 
-The persistence baseline guard reference is:
+The persistence baseline guard reference is approximately:
 
 ```text
 0.094865
@@ -952,33 +1098,31 @@ Signature verification provides an additional check that registered model artifa
 
 # Docker Architecture
 
-Phase 4 introduced containerized local execution.
-
-The complete local stack consists of four services:
+The containerized local execution environment consists of four services:
 
 ```text
-                         ┌─────────────────────┐
-                         │   Next.js / React   │
-                         │       :3000         │
-                         └──────────┬──────────┘
-                                    │
-                                    ▼
-                         ┌─────────────────────┐
-                         │    Node / Express   │
-                         │       :4000         │
-                         └──────────┬──────────┘
-                                    │
-                                    ▼
-                         ┌─────────────────────┐
-                         │  FastAPI ML Service │
-                         │       :8000         │
-                         └──────────┬──────────┘
-                                    │
-                                    ▼
-                         ┌─────────────────────┐
-                         │       MLflow        │
-                         │       :5000         │
-                         └─────────────────────┘
+                          ┌─────────────────────┐
+                          │   Next.js / React   │
+                          │       :3000         │
+                          └──────────┬──────────┘
+                                     │
+                                     ▼
+                          ┌─────────────────────┐
+                          │    Node / Express   │
+                          │       :4000         │
+                          └──────────┬──────────┘
+                                     │
+                                     ▼
+                          ┌─────────────────────┐
+                          │  FastAPI ML Service │
+                          │       :8000         │
+                          └──────────┬──────────┘
+                                     │
+                                     ▼
+                          ┌─────────────────────┐
+                          │       MLflow        │
+                          │       :5000         │
+                          └─────────────────────┘
 ```
 
 Docker Compose provides the local service network and persistent MLflow storage.
@@ -1041,6 +1185,10 @@ Responsible for:
 * inference
 * MLflow model access
 * baseline serving
+* monitoring
+* drift calculations
+* performance calculations
+* degradation detection
 
 ---
 
@@ -1081,13 +1229,472 @@ FastAPI :8000
    │
    ├──────────────► Persistence Baseline
    │
-   └──────────────► MLflow :5000
+   ├──────────────► MLflow :5000
+   │                         │
+   │                         ▼
+   │                    Model Registry
+   │
+   └──────────────► Monitoring
                          │
+              ┌──────────┼──────────┐
+              ▼          ▼          ▼
+          Data Quality  Drift   Performance
+              │          │          │
+              └──────────┼──────────┘
                          ▼
-                   Model Registry
+                  Service Health
 ```
 
-The application therefore has a complete request path from user interface to data access and ML inference.
+The application therefore has a complete request path from user interface to data access, ML inference, and operational monitoring.
+
+---
+
+# Monitoring Architecture
+
+Phase 5 introduced an observability layer around the prediction service.
+
+The monitoring architecture is:
+
+```text
+                    Prediction Request
+                           │
+                           ▼
+                    Request Validation
+                           │
+                           ▼
+                       Prediction
+                           │
+             ┌─────────────┼─────────────┐
+             │             │             │
+             ▼             ▼             ▼
+       Data Quality      Drift       Prediction
+          Signals       Signals      Observation
+             │             │             │
+             │             │             ▼
+             │             │       Actual Outcome
+             │             │             │
+             │             │             ▼
+             │             │      Performance
+             │             │       Observation
+             │             │             │
+             └─────────────┼─────────────┘
+                           ▼
+                    Monitoring State
+                           │
+                           ▼
+                  Degradation Analysis
+```
+
+Monitoring is observational.
+
+It does not directly retrain or promote models.
+
+---
+
+# Data-Quality Monitoring
+
+The monitoring architecture considers common input-quality conditions including:
+
+* required fields
+* data types
+* missing values
+* invalid energy values
+* duplicate timestamps
+* timestamp ordering
+* expected temporal frequency
+* gaps
+* building identity
+* weather-field validity
+
+Data-quality monitoring exists to distinguish model-performance problems from invalid or incomplete input data.
+
+Critical data-quality problems should therefore be considered separately from genuine model degradation.
+
+---
+
+# Drift Monitoring
+
+Phase 5 introduced reference-based feature drift detection using Population Stability Index (PSI).
+
+The drift layer:
+
+* loads a reference feature profile
+* extracts monitoring features from prediction requests
+* compares current observations against reference distributions
+* calculates PSI
+* assigns a monitoring status
+* handles insufficient samples
+* handles unavailable reference data
+* ignores non-finite observations
+
+The current thresholds are:
+
+```text
+Healthy:  PSI < 0.10
+Warning:  0.10 <= PSI < 0.25
+Critical: PSI >= 0.25
+```
+
+The minimum current sample count for feature drift evaluation is:
+
+```text
+30 observations
+```
+
+This prevents individual observations from being interpreted as statistically meaningful distribution drift.
+
+Drift is a supporting signal and does not independently trigger retraining.
+
+---
+
+# Prediction Monitoring
+
+Each prediction can be associated with:
+
+* building ID
+* prediction timestamp
+* predicted energy
+* persistence baseline
+* model name
+* model version
+* serving mode
+
+The monitoring layer therefore preserves the identity of the prediction that was actually served.
+
+A monitoring observation represents an operational prediction event.
+
+It does not represent:
+
+* one building
+* one historical dataset row
+* one training sample
+
+This distinction keeps operational monitoring separate from the historical training dataset.
+
+---
+
+# Model Performance Monitoring
+
+Phase 5 added outcome-based performance tracking.
+
+A prediction becomes a performance observation when the corresponding actual energy value is available.
+
+For each outcome, the system records:
+
+* prediction
+* actual value
+* persistence baseline
+* absolute error
+* squared error
+* building ID
+* timestamp
+* model identity
+* serving mode
+
+The system calculates:
+
+* MAE
+* RMSE
+* NMAE
+* persistence-baseline MAE
+* persistence-baseline RMSE
+* persistence-baseline NMAE
+
+Performance can also be calculated per building.
+
+This allows both global and building-level performance analysis.
+
+---
+
+# Baseline-Aware Performance
+
+The persistence baseline is retained as a reference throughout monitoring.
+
+The persistence strategy is:
+
+```text
+Use the latest observed energy value
+as the next-hour prediction.
+```
+
+Performance monitoring therefore compares:
+
+```text
+Served model
+      vs
+Persistence baseline
+```
+
+on the same observed outcomes.
+
+This prevents model-performance monitoring from evaluating a learned model without a simple operational reference.
+
+---
+
+# Sustained Degradation Detection
+
+Phase 5 added explicit sustained-degradation logic.
+
+The system does not classify a model as degraded because of one poor prediction or one poor rolling window.
+
+The configured defaults are:
+
+```text
+Recent window size:          30 observations
+Sustained windows required:  3
+Relative degradation limit: 10%
+Minimum observations:       90
+```
+
+The evaluation therefore requires:
+
+```text
+30 observations
+    ↓
+First performance window
+
+30 observations
+    ↓
+Second performance window
+
+30 observations
+    ↓
+Third performance window
+
+90 observations total
+    ↓
+Sustained-degradation evaluation
+```
+
+The degradation detector requires all three evaluated windows to satisfy the degradation condition before returning a degraded state.
+
+With fewer than 90 performance observations, the system returns:
+
+```text
+insufficient_data
+```
+
+This deliberately reduces the chance of triggering lifecycle actions from short-lived noise.
+
+---
+
+# Degradation State Semantics
+
+The degradation evaluation distinguishes between:
+
+```text
+insufficient_data
+healthy
+degraded
+```
+
+### insufficient_data
+
+There are not enough outcome observations to establish the required sustained performance window.
+
+### healthy
+
+There is sufficient data, but the sustained degradation condition has not been met.
+
+### degraded
+
+There is sufficient data and all required sustained windows satisfy the degradation condition.
+
+This state is an evidence signal and does not itself retrain or replace a model.
+
+---
+
+# Service Health
+
+The monitoring architecture considers:
+
+* request availability
+* prediction errors
+* request latency
+* health state
+* readiness state
+* dependency/service availability
+
+The model service exposes health and readiness endpoints independently from the prediction endpoint.
+
+This separates:
+
+```text
+Service is running
+```
+
+from:
+
+```text
+Service is ready to serve predictions
+```
+
+and from:
+
+```text
+Model performance is healthy
+```
+
+These are different operational conditions and are monitored separately.
+
+---
+
+# Monitoring State
+
+The monitoring state is maintained by the model service.
+
+The monitoring state stores:
+
+* prediction records
+* performance observations
+* service-health information
+* monitoring summaries
+
+The in-memory monitoring store is bounded to prevent unbounded growth.
+
+The monitoring layer is intentionally lightweight and suitable for the current local, CPU-first architecture.
+
+A persistent production telemetry store can be introduced in a future phase if operational requirements justify it.
+
+---
+
+# Monitoring Dashboard
+
+The Monitoring page exposes the operational state of the ML system through the web application.
+
+The dashboard integrates the monitoring information required for Phase 5, including:
+
+* service state
+* prediction observations
+* model/serving information
+* data-quality signals
+* drift signals
+* performance information where outcomes exist
+* baseline comparison
+* degradation state
+* recent monitoring information
+
+The dashboard is an operational observability surface rather than a training notebook replacement.
+
+---
+
+# Testing Architecture
+
+Phase 5 established automated verification across the major system layers.
+
+The testing architecture is:
+
+```text
+Python Tests
+      ↓
+ML / Data / Monitoring Components
+
+Node Type Checking + Build
+      ↓
+Application API
+
+Next.js Lint + Build
+      ↓
+Frontend
+
+Docker Runtime Verification
+      ↓
+Containerized System
+```
+
+The Python test suite covers:
+
+* data validation
+* feature generation
+* lag correctness
+* rolling-window behavior
+* missing-history handling
+* model behavior
+* prediction contracts
+* baseline behavior
+* inference API
+* monitoring
+* drift
+* performance
+* degradation detection
+
+Final Python test result:
+
+```text
+47 passed, 2 warnings
+```
+
+The API was verified with:
+
+```text
+npm run typecheck
+npm run build
+```
+
+Both passed.
+
+The API currently does not define an `npm run lint` script, so API linting is not part of the implemented project verification contract.
+
+The frontend was verified with:
+
+```text
+npm run lint
+npm run build
+```
+
+Both passed.
+
+---
+
+# Continuous Integration
+
+GitHub Actions provides automated repository-level verification.
+
+The CI foundation focuses on deterministic checks that are appropriate for regular changes.
+
+The current verification categories are:
+
+```text
+Python
+├── pytest
+└── Ruff
+
+Node API
+├── TypeScript typecheck
+└── production build
+
+Web
+├── ESLint
+└── production build
+```
+
+The CI system intentionally avoids requiring expensive operations for every change.
+
+The following are not required on every commit:
+
+* complete historical retraining
+* large-scale model evaluation
+* long-running drift analysis
+* full Docker stack rebuild
+* large data ingestion
+* production-style deployment
+
+These can be introduced into scheduled or manual workflows when appropriate.
+
+---
+
+# CI Failure Boundaries
+
+The following failures are intended to block a change:
+
+* failing Python tests
+* Ruff violations
+* API type errors
+* API build failures
+* frontend lint failures
+* frontend build failures
+
+The purpose of CI is to catch deterministic engineering regressions before they reach the shared repository.
 
 ---
 
@@ -1120,6 +1727,35 @@ The frontend provides explicit states for:
 * unavailable buildings
 * unavailable anomaly analysis
 * unavailable Model Lab information
+* unavailable monitoring information
+
+---
+
+# Prediction Reliability Boundary
+
+Monitoring must not become a failure point for the prediction path.
+
+The intended request path is:
+
+```text
+Request
+  ↓
+Validation
+  ↓
+Prediction
+  ↓
+Monitoring Instrumentation
+```
+
+Optional monitoring fields are handled safely so that missing optional information does not cause an otherwise valid prediction request to fail.
+
+This preserves the primary application capability:
+
+```text
+building data → forecast
+```
+
+while still allowing operational telemetry to be collected.
 
 ---
 
@@ -1180,20 +1816,30 @@ MLflow uses persistent Docker storage for:
 
 ---
 
+## Monitoring Storage
+
+The current monitoring implementation maintains operational observations in bounded in-memory state inside the model service.
+
+This is sufficient for the current local architecture.
+
+A persistent monitoring datastore can be introduced in a later phase if the system requires durable historical telemetry, multi-instance monitoring, or long-term alert history.
+
+---
+
 ## Database Boundary
 
 A dedicated application database has not been introduced.
 
-The current application does not require MongoDB or another application database because its present state can be represented through static application data, processed datasets, and MLflow lifecycle storage.
+The current application does not require MongoDB or another application database because its present state can be represented through static application data, processed datasets, MLflow lifecycle storage, and bounded monitoring state.
 
 A database can be introduced later if requirements emerge for:
 
 * user-specific state
 * operational records
-* prediction history
+* persistent prediction history
 * configuration
 * alerts
-* monitoring records
+* durable monitoring records
 
 ---
 
@@ -1293,85 +1939,200 @@ A failed guard does not overwrite the existing production state.
 
 ---
 
-# Testing Architecture
+## Serving → Monitoring
 
-Each layer can be validated independently.
-
-```text
-Python Tests
-      ↓
-ML / Data Components
-
-Node Type Checking + Build
-      ↓
-Application API
-
-Next.js Lint + Build
-      ↓
-Frontend
-
-Docker Runtime Checks
-      ↓
-Containerized System
-```
-
-The model-service test suite currently contains:
+The prediction service emits operational information into the monitoring layer.
 
 ```text
-20 passed
+Serving
+   ↓
+Prediction Record
+   ├── Data Quality
+   ├── Drift
+   ├── Performance
+   └── Service Health
 ```
 
-Phase 4 runtime verification also covered:
+Monitoring does not directly alter serving state.
 
-* Docker Compose configuration
-* MLflow health
-* model-service health
-* model-service readiness
-* API health
-* registered model versions
-* lifecycle metadata
-* MLflow signatures
-* real prediction execution
-* baseline prediction behavior
+---
+
+# Phase 5 Monitoring Boundary
+
+Phase 5 establishes a strict boundary between observation and automated lifecycle action.
+
+```text
+Prediction
+    ↓
+Observation
+    ↓
+Metrics
+    ↓
+Signals
+    ↓
+Sustained Evidence
+    ↓
+Retraining Eligibility
+    ↓
+PHASE 6
+```
+
+The current system stops before automatic retraining.
+
+This prevents noisy monitoring signals from causing uncontrolled model lifecycle actions.
+
+---
+
+# Phase 6 Retraining Eligibility
+
+Phase 5 establishes the evidence required before future retraining logic can be introduced.
+
+A future retraining workflow should require sufficient evidence across multiple signals.
+
+The intended conditions are:
+
+```text
+Sufficient observations
+        +
+Sustained performance degradation
+        +
+Supporting drift evidence where relevant
+        +
+Learned model underperforms persistence baseline
+        +
+Data quality is not critical
+        +
+Service state is operational
+        ↓
+Retraining Eligible
+```
+
+Drift alone must not trigger retraining.
+
+Poor performance caused by critical data-quality problems must not automatically trigger retraining.
+
+Short-lived degradation must not trigger retraining.
+
+The resulting eligibility state should contain enough context to explain why retraining became eligible.
+
+Expected future eligibility information includes:
+
+* model identity
+* model version
+* serving mode
+* sample count
+* evaluation window
+* current performance
+* reference performance
+* persistence-baseline performance
+* drift state
+* data-quality state
+* service-health state
+* degradation state
+* reasons for eligibility
+
+The actual retraining workflow is deferred to Phase 6.
 
 ---
 
 # Current Service Responsibilities
 
-| Component              | Responsibility                         |
-| ---------------------- | -------------------------------------- |
-| Next.js                | User interface and presentation        |
-| React                  | UI components and client-side state    |
-| Recharts               | Analytical visualization               |
-| Express                | Application API and orchestration      |
-| Building Repository    | Building metadata access               |
-| Consumption Repository | Historical consumption access          |
-| Prediction Repository  | Prediction-context preparation         |
-| Building Service       | Building application logic             |
-| Consumption Service    | Consumption application logic          |
-| Prediction Service     | ML-service communication               |
-| Anomaly Service        | Consumption anomaly analysis           |
-| Model Lab Service      | ML lifecycle API integration           |
-| FastAPI                | ML inference and serving strategy      |
-| MLflow                 | Experiment tracking and model registry |
-| Persistence            | Operational baseline forecasting       |
-| Learned Models         | Evaluated forecasting challengers      |
+| Component              | Responsibility                              |
+| ---------------------- | ------------------------------------------- |
+| Next.js                | User interface and presentation             |
+| React                  | UI components and client-side state         |
+| Recharts               | Analytical visualization                    |
+| Express                | Application API and orchestration           |
+| Building Repository    | Building metadata access                    |
+| Consumption Repository | Historical consumption access               |
+| Prediction Repository  | Prediction-context preparation              |
+| Building Service       | Building application logic                  |
+| Consumption Service    | Consumption application logic               |
+| Prediction Service     | ML-service communication                    |
+| Anomaly Service        | Consumption anomaly analysis                |
+| Model Lab Service      | ML lifecycle API integration                |
+| FastAPI                | ML inference and serving strategy           |
+| MLflow                 | Experiment tracking and model registry      |
+| Monitoring State       | Prediction and operational observations     |
+| Drift Layer            | Reference-based feature drift detection     |
+| Performance Layer      | Outcome-based model performance analysis    |
+| Degradation Layer      | Sustained performance degradation detection |
+| Persistence            | Operational baseline forecasting            |
+| Learned Models         | Evaluated forecasting challengers           |
 
 ---
 
-# Phase 4 Architectural Outcome
+# Current Architecture Flow
 
-Phase 4 extends the previous application architecture into a local MLOps system.
-
-The resulting architecture is:
+The complete implemented architecture is:
 
 ```text
                          ┌──────────────────────┐
-                         │     Next.js Web      │
-                         │        :3000         │
+                         │      BDG2 Data       │
                          └──────────┬───────────┘
                                     │
                                     ▼
+                         ┌──────────────────────┐
+                         │ Validation + Feature │
+                         │     Engineering      │
+                         └──────────┬───────────┘
+                                    │
+                                    ▼
+                         ┌──────────────────────┐
+                         │ ML Training + Eval   │
+                         └──────────┬───────────┘
+                                    │
+                                    ▼
+                         ┌──────────────────────┐
+                         │       MLflow         │
+                         │ Experiment Tracking  │
+                         └──────────┬───────────┘
+                                    │
+                                    ▼
+                         ┌──────────────────────┐
+                         │    Model Registry    │
+                         └──────────┬───────────┘
+                                    │
+                                    ▼
+                         ┌──────────────────────┐
+                         │    Baseline Guard    │
+                         └──────────┬───────────┘
+                                    │
+                                    ▼
+                         ┌──────────────────────┐
+                         │    Serving Decision  │
+                         └──────────┬───────────┘
+                                    │
+                                    ▼
+                         ┌──────────────────────┐
+                         │   FastAPI Service    │
+                         └──────────┬───────────┘
+                                    │
+                                    ▼
+                         ┌──────────────────────┐
+                         │     Prediction       │
+                         └──────────┬───────────┘
+                                    │
+                 ┌──────────────────┼──────────────────┐
+                 │                  │                  │
+                 ▼                  ▼                  ▼
+          Data Quality           Drift            Performance
+                 │                  │                  │
+                 └──────────────────┼──────────────────┘
+                                    │
+                                    ▼
+                            Service Health
+                                    │
+                                    ▼
+                         Sustained Degradation
+                                    │
+                                    ▼
+                         Retraining Eligibility
+                                    │
+                                    ▼
+                              Phase 6
+                                   
+                                   
                          ┌──────────────────────┐
                          │    Express API       │
                          │        :4000         │
@@ -1379,29 +2140,68 @@ The resulting architecture is:
                                     │
                                     ▼
                          ┌──────────────────────┐
-                         │  FastAPI ML Service  │
-                         │        :8000         │
-                         └──────────┬───────────┘
-                                    │
-                     ┌──────────────┴──────────────┐
-                     │                             │
-                     ▼                             ▼
-             Persistence Baseline          MLflow :5000
-                                                   │
-                                                   ▼
-                                            Model Registry
-                                                   │
-                                                   ▼
-                                            Model Versions
-                                                   │
-                                                   ▼
-                                            Evaluation Gates
-                                                   │
-                                                   ▼
-                                            Promotion Decision
+                         │    Next.js Web       │
+                         │        :3000         │
+                         └──────────────────────┘
 ```
 
-The most important architectural result is the separation between:
+---
+
+# Completed Architecture
+
+The current platform combines the application, ML lifecycle, and observability layers:
+
+```text
+                     ┌──────────────────────────┐
+                     │        BDG2 Data         │
+                     └────────────┬─────────────┘
+                                  ↓
+                     ┌──────────────────────────┐
+                     │ Validation + Features    │
+                     └────────────┬─────────────┘
+                                  ↓
+                     ┌──────────────────────────┐
+                     │ Training + Evaluation     │
+                     └────────────┬─────────────┘
+                                  ↓
+                     ┌──────────────────────────┐
+                     │         MLflow            │
+                     └────────────┬─────────────┘
+                                  ↓
+                     ┌──────────────────────────┐
+                     │     Model Registry       │
+                     └────────────┬─────────────┘
+                                  ↓
+                     ┌──────────────────────────┐
+                     │      Baseline Guard      │
+                     └────────────┬─────────────┘
+                                  ↓
+                     ┌──────────────────────────┐
+                     │    Serving Decision       │
+                     └────────────┬─────────────┘
+                                  ↓
+                     ┌──────────────────────────┐
+                     │    FastAPI ML Service     │
+                     └────────────┬─────────────┘
+                                  ↓
+                     ┌──────────────────────────┐
+                     │       Prediction          │
+                     └────────────┬─────────────┘
+                                  ↓
+               ┌──────────────────┼──────────────────┐
+               ↓                  ↓                  ↓
+          Data Quality          Drift          Performance
+               │                  │                  │
+               └──────────────────┼──────────────────┘
+                                  ↓
+                           Service Health
+                                  ↓
+                      Sustained Degradation
+                                  ↓
+                       Phase 6 Eligibility
+```
+
+The application path remains:
 
 ```text
 User Experience
@@ -1412,116 +2212,83 @@ ML Inference
        ↓
 Model Lifecycle
        ↓
-Model Artifact / Baseline
-```
-
-This separation allows the platform to evolve without coupling the frontend directly to model-training or model-management infrastructure.
-
----
-
-# Completed Architecture
-
-The completed current architecture is:
-
-```text
-                    ┌──────────────────────┐
-                    │      BDG2 Data       │
-                    └──────────┬───────────┘
-                               ↓
-                    ┌──────────────────────┐
-                    │ Validation + Feature │
-                    │     Engineering      │
-                    └──────────┬───────────┘
-                               ↓
-                    ┌──────────────────────┐
-                    │ ML Training + Eval   │
-                    └──────────┬───────────┘
-                               ↓
-                    ┌──────────────────────┐
-                    │       MLflow         │
-                    │ Experiment Tracking  │
-                    └──────────┬───────────┘
-                               ↓
-                    ┌──────────────────────┐
-                    │    Model Registry    │
-                    └──────────┬───────────┘
-                               ↓
-                    ┌──────────────────────┐
-                    │    Baseline Guard    │
-                    └──────────┬───────────┘
-                               ↓
-                    ┌──────────────────────┐
-                    │    Serving Decision  │
-                    └──────────┬───────────┘
-                               ↓
-                    ┌──────────────────────┐
-                    │   FastAPI Service    │
-                    └──────────┬───────────┘
-                               ↓
-                    ┌──────────────────────┐
-                    │    Express API       │
-                    └──────────┬───────────┘
-                               ↓
-                    ┌──────────────────────┐
-                    │    Next.js Web       │
-                    └──────────────────────┘
-```
-
----
-
-# Future Architecture
-
-Future phases will extend the current architecture with monitoring, controlled retraining, and deployment.
-
-The intended evolution is:
-
-```text
-Experiment Tracking
-        ↓
-Model Registry
-        ↓
-Evaluation Gates
-        ↓
-Model Promotion
-        ↓
-Serving
-        ↓
 Monitoring
-        ↓
-Drift Detection
-        ↓
-Performance Detection
-        ↓
-Controlled Retraining
-        ↓
-Re-evaluation
-        ↓
-Promotion
-        ↓
-Deployment
+       ↓
+Evidence for Future Lifecycle Actions
 ```
 
-These are future architectural capabilities, not requirements of the current completed phase.
+This separation allows the platform to evolve without coupling the frontend directly to model-training, model-management, or monitoring infrastructure.
 
 ---
 
-# Phase 4 Scope Boundary
+# Phase 5 Architectural Outcome
 
-Phase 4 is complete.
+Phase 5 extends the previous MLOps architecture with testability and operational observability.
+
+The resulting architecture is:
+
+```text
+Training
+   ↓
+Tracking
+   ↓
+Evaluation
+   ↓
+Registry
+   ↓
+Baseline Guard
+   ↓
+Controlled Serving
+   ↓
+Prediction Monitoring
+   ├── Data Quality
+   ├── Drift
+   ├── Performance
+   └── Service Health
+            ↓
+     Sustained Evidence
+            ↓
+     Retraining Eligibility
+            ↓
+          Phase 6
+```
+
+The most important architectural result is that the platform can now observe the operational behavior of the prediction system without automatically modifying the model lifecycle.
+
+---
+
+# Phase 5 Scope Boundary
+
+Phase 5 is complete.
+
+It implements:
+
+* automated testing
+* Python static analysis
+* API type checking
+* API production verification
+* frontend linting
+* frontend production verification
+* CI foundation
+* data-quality monitoring
+* feature drift detection
+* prediction monitoring
+* model-performance monitoring
+* baseline-aware performance comparison
+* sustained degradation detection
+* service-health monitoring
+* monitoring dashboard
+* Phase 6 retraining eligibility contract
 
 It does not implement:
 
-* GitHub Actions CI/CD
+* automatic retraining
+* automatic model replacement
+* automatic model promotion based solely on monitoring
+* autonomous remediation
 * production cloud deployment
 * Kubernetes
-* automated data-quality monitoring
-* automated data-drift detection
-* prediction-performance monitoring
-* automated retraining
-* automatic retraining triggers
-* automatic production promotion without evaluation
-
-These capabilities belong to later phases.
+* uncontrolled lifecycle actions
 
 The current architecture deliberately stops at:
 
@@ -1537,6 +2304,9 @@ Registry
 Baseline Guard
   ↓
 Controlled Serving
-```
-
-This provides a stable foundation for the next engineering stage without introducing monitoring, retraining, or deployment infrastructure prematurely.
+  ↓
+Monitoring
+  ↓
+Sustained Evidence
+  ↓
+Retraining Eligibility

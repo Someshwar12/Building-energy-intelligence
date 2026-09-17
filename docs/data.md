@@ -4,7 +4,7 @@
 
 The Building & Energy Intelligence Platform uses the Building Data Genome Project 2 (BDG2) as its initial data source.
 
-The data pipeline transforms raw building, electricity, weather, and metadata sources into a validated feature dataset that can be used consistently by model training, evaluation, application data access, and prediction-time inference.
+The data pipeline transforms raw building, electricity, weather, and metadata sources into a validated feature dataset that can be used consistently by model training, evaluation, application data access, prediction-time inference, and operational monitoring.
 
 The current pipeline is:
 
@@ -25,7 +25,11 @@ MLflow Tracking / Registry
       ↓
 Model Serving
       ↓
-Application / Dashboard
+Prediction
+      ↓
+Monitoring
+      ↓
+Performance / Drift / Data Quality Signals
 ````
 
 The data layer is intentionally designed around clear boundaries between:
@@ -36,6 +40,7 @@ The data layer is intentionally designed around clear boundaries between:
 * model artifacts
 * MLflow lifecycle metadata
 * prediction-time inference context
+* operational monitoring observations
 
 ---
 
@@ -259,11 +264,11 @@ Conceptually:
 ```text
 Historical observations up to time t
                 ↓
-          Feature vector
+           Feature vector
                 ↓
-       target_next_hour_kwh
+        target_next_hour_kwh
                 ↓
-     Energy consumption at t+1
+      Energy consumption at t+1
 ```
 
 The prediction problem is therefore a one-step-ahead hourly forecasting task.
@@ -325,7 +330,8 @@ The model service then:
 3. reconstructs the required temporal features
 4. combines them with building and weather context
 5. produces the prediction
-6. returns model identity and serving information with the result
+6. records the prediction for operational monitoring
+7. returns model identity and serving information with the result
 
 The prediction response includes:
 
@@ -362,13 +368,13 @@ The conceptual relationship is:
 ```text
 Processed Historical Data
           ↓
-   Phase 1 Features
-       ↙       ↘
-  Training    Inference
-     ↓           ↓
-  Evaluation   Prediction
-     ↓
-  MLflow
+     Phase 1 Features
+        ↙       ↘
+   Training    Inference
+      ↓           ↓
+ Evaluation   Prediction
+      ↓
+    MLflow
 ```
 
 The training pipeline generates the feature dataset used for model experiments.
@@ -457,6 +463,7 @@ The current data responsibilities are:
 | Express API          | Historical data and prediction-context access                        |
 | FastAPI              | Prediction-time validation and feature construction                  |
 | MLflow               | Experiment, model-version and lifecycle metadata                     |
+| Monitoring State     | Prediction and performance observations                              |
 | Next.js              | Presentation of API responses                                        |
 
 This separation prevents application code from becoming responsible for training-data transformations and prevents model lifecycle metadata from being mixed into the raw data layer.
@@ -487,10 +494,21 @@ Evaluation           Historical Data
 MLflow Tracking      Express API
       │                   │
       ▼                   │
-Model Registry        │
+Model Registry       │
       │                   │
       ▼                   │
 FastAPI Model Service ────┘
+      │
+      ▼
+Prediction
+      │
+      ▼
+Monitoring
+      │
+      ├── Data Quality
+      ├── Drift
+      ├── Performance
+      └── Service Health
       │
       ▼
 Next.js Dashboard
@@ -543,6 +561,8 @@ Registered model version
 Lifecycle status / aliases
 ```
 
+Operational monitoring currently uses bounded in-memory state inside the model service.
+
 This keeps the system:
 
 * local
@@ -564,6 +584,7 @@ The current requirements can be satisfied by:
 * JSON for the small application building catalog
 * local model artifacts where required
 * MLflow storage for experiment and model lifecycle state
+* bounded in-memory state for current monitoring observations
 
 A database can be justified later if the platform begins storing substantial operational state such as:
 
@@ -616,6 +637,7 @@ Important validation areas include:
 * building identity
 * feature consistency
 * inference history sufficiency
+* invalid input values
 
 The purpose is not merely to make training succeed.
 
@@ -797,7 +819,7 @@ The baseline comparison is a lifecycle decision and does not modify the underlyi
 
 # MLflow and Data Reproducibility
 
-Phase 4 adds MLflow-based experiment tracking and model registry capabilities around the existing data pipeline.
+MLflow provides experiment tracking and model registry capabilities around the existing data pipeline.
 
 The underlying Phase 1 feature dataset remains unchanged.
 
@@ -917,12 +939,12 @@ Conceptually:
 ```text
 MLflow production alias available
              │
-        ┌────┴────┐
-       Yes        No
-        │          │
-        ▼          ▼
- Learned model  Persistence
-   serving       serving
+         ┌───┴───┐
+        Yes      No
+         │        │
+         ▼        ▼
+  Learned model  Persistence
+    serving       serving
 ```
 
 In baseline serving mode, the prediction is derived from the latest observed historical energy value.
@@ -968,7 +990,9 @@ Consequently:
 Current system:
 Historical data
       ↓
-Inference demonstration
+Inference
+      ↓
+Monitoring
       ↓
 Dashboard
 ```
@@ -1004,19 +1028,19 @@ The current application uses the same processed historical dataset for multiple 
 ```text
                     phase1_features.parquet
                             │
-             ┌──────────────┴──────────────┐
-             │                             │
-             ▼                             ▼
-      Historical API                 ML Context
-             │                             │
-             ▼                             ▼
-        Dashboard                    FastAPI
-                                           │
-                                           ▼
-                                    Feature Builder
-                                           │
-                                           ▼
-                                       Model
+                 ┌──────────┴──────────┐
+                 │                     │
+                 ▼                     ▼
+          Historical API          ML Context
+                 │                     │
+                 ▼                     ▼
+             Dashboard              FastAPI
+                                       │
+                                       ▼
+                                Feature Builder
+                                       │
+                                       ▼
+                                     Model
 ```
 
 This approach avoids unnecessary duplication of the historical dataset.
@@ -1051,6 +1075,13 @@ The ML pipeline should not:
 * directly control the frontend
 * depend on browser-specific behaviour
 * modify raw source files
+
+Monitoring should not:
+
+* modify raw training data
+* directly promote a model
+* directly retrain a model
+* replace the serving strategy without a lifecycle decision
 
 This separation keeps the data flow understandable and testable.
 
@@ -1088,163 +1119,334 @@ The separation allows the application catalog to remain stable without treating 
 
 ---
 
-# Current Data Architecture
+# Current Data Quality Monitoring
 
-The current data architecture can be summarized as:
+Phase 5 extends the existing data validation architecture with operational data-quality signals.
 
-```text
-                         ┌──────────────────────┐
-                         │      BDG2 Raw Data   │
-                         └──────────┬───────────┘
-                                    │
-                                    ▼
-                         ┌──────────────────────┐
-                         │ Validation + Feature │
-                         │ Engineering          │
-                         └──────────┬───────────┘
-                                    │
-                                    ▼
-                         ┌──────────────────────┐
-                         │ phase1_features      │
-                         │ .parquet             │
-                         └─────────┬─────┬──────┘
-                                   │     │
-                              Training  Application
-                                   │     │
-                                   ▼     ▼
-                              ML Models  Express API
-                                   │     │
-                                   ▼     │
-                                MLflow   │
-                                   │     │
-                                   ▼     │
-                              Model Registry
-                                   │
-                                   ▼
-                               FastAPI
-                                   │
-                                   ▼
-                               Next.js
-```
+The monitoring layer considers conditions including:
 
-The persistence baseline provides an additional operational path:
+* required fields
+* data types
+* missing values
+* invalid energy values
+* duplicate timestamps
+* timestamp ordering
+* expected temporal frequency
+* gaps
+* building identity
+* weather-field validity
+
+The intended relationship is:
 
 ```text
-Historical observations
-          ↓
-Persistence baseline
-          ↓
-FastAPI
-          ↓
-Next.js
+Incoming Prediction Context
+        ↓
+Data-Quality Checks
+        ↓
+Monitoring Signal
+        ↓
+Prediction / Operational Analysis
 ```
 
-when no learned model has been promoted for production serving.
+Data-quality monitoring exists to distinguish model-performance problems from invalid or incomplete input data.
+
+Critical data-quality problems should therefore be considered separately from genuine model degradation.
 
 ---
 
-# Future Data Architecture
+# Current Drift Data Architecture
 
-Later phases can extend the current data layer toward a more operational architecture.
+Phase 5 introduces reference-based feature drift monitoring.
 
-The intended evolution is:
+A reference feature profile is compared against current monitoring observations.
 
-```text
-Historical / Incoming Data
-          ↓
-Data Validation
-          ↓
-Feature Pipeline
-          ↓
-Feature Storage
-          ↓
-Model Inference
-          ↓
-Prediction Storage
-          ↓
-Monitoring
-          ↓
-Drift / Performance Detection
-          ↓
-Controlled Retraining
-```
-
-Potential future additions include:
-
-* automated ingestion
-* data-quality monitoring
-* feature versioning
-* prediction storage
-* drift detection
-* prediction-performance monitoring
-* operational databases
-* retraining datasets
-* automated data-quality checks
-* stronger dataset lineage
-
-These are planned capabilities rather than current implementations unless explicitly marked elsewhere in the project documentation.
-
----
-
-# Future Operational Data Model
-
-If the system later requires persistent operational state, a future data architecture could separate:
+The conceptual flow is:
 
 ```text
-Analytical Data
-      │
-      ├── Historical energy
-      ├── Weather
-      ├── Building metadata
-      └── Engineered features
-
-Operational Data
-      │
-      ├── Predictions
-      ├── Actual outcomes
-      ├── Monitoring results
-      ├── Drift measurements
-      ├── Alerts
-      └── Retraining events
+Reference Feature Distribution
+             +
+Current Feature Observations
+             ↓
+        PSI Analysis
+             ↓
+      Drift Monitoring
 ```
 
-The current project deliberately does not introduce this layer until the operational requirements justify it.
+The drift layer monitors relevant numerical prediction-context features such as:
+
+* building characteristics
+* calendar features
+* historical energy features
+* weather variables
+* degree-hour features
+
+The current drift thresholds are:
+
+```text
+Healthy:  PSI < 0.10
+Warning:  0.10 <= PSI < 0.25
+Critical: PSI >= 0.25
+```
+
+A minimum current sample count of 30 observations is required before a feature drift result is considered evaluable.
+
+This prevents individual prediction requests from being treated as statistically meaningful distribution changes.
+
+Drift is a supporting operational signal and does not independently trigger retraining.
 
 ---
 
 # Monitoring Data
 
-Monitoring is planned as a downstream consumer of the prediction and actual-observation streams.
+Monitoring data is operational data generated around the prediction lifecycle.
 
-The intended relationship is:
+A monitoring prediction observation contains information such as:
+
+```text
+building_id
+timestamp
+prediction
+persistence_baseline
+model_name
+model_version
+serving_mode
+```
+
+When an actual outcome becomes available, the system can create a performance observation containing:
+
+```text
+building_id
+timestamp
+prediction
+actual
+persistence_baseline
+absolute_error
+squared_error
+model_name
+model_version
+serving_mode
+```
+
+The distinction is:
+
+```text
+Prediction Event
+      ↓
+Prediction Observation
+      ↓
+Actual Outcome Available
+      ↓
+Performance Observation
+```
+
+A monitoring observation is therefore an operational prediction event.
+
+It is not:
+
+* one building
+* one historical dataset row
+* one training sample
+
+The development dataset contains 12 selected buildings and 210,528 processed rows, while the monitoring state records prediction events generated by the running service.
+
+---
+
+# Monitoring Storage Strategy
+
+The current monitoring implementation uses bounded in-memory state inside the model service.
+
+The monitoring state is intentionally bounded to prevent unbounded memory growth.
+
+This is suitable for the current local architecture.
+
+The current system does not claim that monitoring observations are a durable production telemetry store.
+
+A persistent operational monitoring datastore can be introduced in a later phase if the system requires:
+
+* long-term telemetry retention
+* multi-instance monitoring
+* durable prediction history
+* persistent alert history
+* cross-process monitoring
+* production-scale observability
+
+---
+
+# Prediction and Actual-Outcome Relationship
+
+Model-performance monitoring requires both a prediction and the corresponding actual outcome.
+
+The data flow is:
 
 ```text
 Prediction
     +
-Actual outcome
+Actual Energy
     ↓
-Performance measurement
+Performance Observation
     ↓
-Monitoring
+Error Calculation
     ↓
-Degradation detection
+Rolling Performance Metrics
 ```
 
-For data drift:
+Without actual outcomes, the system can record prediction events but cannot calculate realized prediction error.
+
+This distinction is important when interpreting monitoring observation counts.
+
+---
+
+# Performance Monitoring Data
+
+Performance monitoring uses the prediction and actual outcome relationship to calculate:
+
+* MAE
+* RMSE
+* NMAE
+* persistence-baseline MAE
+* persistence-baseline RMSE
+* persistence-baseline NMAE
+
+Performance can also be calculated per building.
+
+The conceptual structure is:
 
 ```text
-Reference feature distribution
-            +
-Current feature distribution
-            ↓
-       Drift analysis
-            ↓
-      Monitoring signal
+Prediction + Actual
+        ↓
+Absolute Error
+        ↓
+Squared Error
+        ↓
+Performance Metrics
+        ↓
+Global + Per-Building Analysis
 ```
 
-These capabilities belong to later lifecycle phases.
+The persistence baseline is calculated on the same observed outcomes so that model and baseline performance are directly comparable.
 
-The current data architecture is designed so that they can be added without changing the core historical data contract.
+---
+
+# Performance Degradation Data
+
+The degradation layer evaluates rolling performance observations rather than individual predictions.
+
+The current configuration is:
+
+```text
+Recent window size:          30 observations
+Sustained windows required:  3
+Relative degradation limit: 10%
+Minimum observations:       90
+```
+
+The data requirement is therefore:
+
+```text
+30 observations
+      ↓
+First window
+
+30 observations
+      ↓
+Second window
+
+30 observations
+      ↓
+Third window
+
+90 observations
+      ↓
+Sustained degradation evaluation
+```
+
+Fewer than 90 performance observations result in:
+
+```text
+insufficient_data
+```
+
+The detector distinguishes between:
+
+```text
+insufficient_data
+healthy
+degraded
+```
+
+A degraded state requires the sustained degradation condition to be met across all required windows.
+
+This prevents short-lived changes from being treated as sufficient evidence for lifecycle action.
+
+---
+
+# Baseline-Aware Performance Monitoring
+
+Performance monitoring retains the persistence baseline as an operational reference.
+
+The comparison is:
+
+```text
+Served Model
+      vs
+Persistence Baseline
+```
+
+using the same actual outcomes.
+
+This provides a consistent reference for interpreting model performance.
+
+The monitoring layer therefore does not evaluate a learned model only against its own historical metrics.
+
+It can also determine whether the served strategy is continuing to provide useful performance relative to the simple persistence benchmark.
+
+---
+
+# Data Quality and Retraining Boundary
+
+Data quality is part of the evidence used to interpret model degradation.
+
+The intended decision structure is:
+
+```text
+Poor Performance
+      ↓
+Check Data Quality
+      │
+      ├── Critical data-quality issue
+      │        ↓
+      │   Investigate data
+      │
+      └── Data quality acceptable
+               ↓
+        Evaluate model degradation
+```
+
+A model should not automatically become a retraining candidate when poor performance is primarily explained by invalid or incomplete incoming data.
+
+---
+
+# Drift and Retraining Boundary
+
+Drift is also treated as supporting evidence rather than an automatic lifecycle trigger.
+
+The intended relationship is:
+
+```text
+Feature Drift
+      ↓
+Monitoring Signal
+      ↓
+Combine with Performance
+      ↓
+Evaluate Sustained Degradation
+      ↓
+Retraining Eligibility
+```
+
+Drift alone does not imply that the model should be retrained.
+
+This prevents distribution changes that do not materially affect predictive performance from automatically initiating model lifecycle actions.
 
 ---
 
@@ -1288,9 +1490,51 @@ A newly trained model is treated as a candidate until it passes the defined eval
 
 ---
 
+# Retraining Eligibility Data Contract
+
+Phase 5 establishes the monitoring information required by the future retraining workflow.
+
+The intended eligibility evidence is:
+
+```text
+Sufficient observations
+        +
+Sustained performance degradation
+        +
+Supporting drift evidence where relevant
+        +
+Learned model underperforms persistence baseline
+        +
+Data quality is not critical
+        +
+Service state is operational
+        ↓
+Retraining Eligible
+```
+
+The future eligibility state should contain:
+
+* model identity
+* model version
+* serving mode
+* sample count
+* evaluation window
+* current performance
+* reference performance
+* persistence-baseline performance
+* drift state
+* data-quality state
+* service-health state
+* degradation state
+* reasons for eligibility
+
+The current data layer provides the information required to construct this future state, but the actual retraining workflow belongs to Phase 6.
+
+---
+
 # Data Quality Principles
 
-The project follows several core data principles:
+The project follows several core data principles.
 
 ## 1. Preserve raw data
 
@@ -1320,7 +1564,11 @@ Learned models should be evaluated against meaningful simple forecasting strateg
 
 The dataset is not the model, and a model version is not automatically a new dataset version.
 
-## 8. Avoid premature infrastructure
+## 8. Treat monitoring as operational data
+
+Prediction observations and performance observations are separate from historical training data.
+
+## 9. Avoid premature infrastructure
 
 Operational databases and streaming infrastructure are introduced only when justified by actual system requirements.
 
@@ -1335,9 +1583,11 @@ The current data layer has several deliberate limitations:
 * the development scope contains only 12 selected buildings
 * missing observations exist in the source data
 * the current system does not have a production telemetry ingestion pipeline
-* prediction history is not yet stored in a dedicated operational database
-* formal automated feature/data versioning is not yet implemented
-* monitoring and controlled retraining are future lifecycle phases
+* prediction history is maintained in bounded in-memory monitoring state rather than a dedicated persistent database
+* formal automated dataset versioning is not yet implemented
+* persistent operational monitoring storage is not yet implemented
+* automatic retraining is not implemented
+* live production data ingestion is not implemented
 
 These limitations are explicit design boundaries rather than hidden assumptions.
 
@@ -1357,6 +1607,11 @@ The current data foundation is sufficient for:
 * model-serving demonstrations
 * local Docker-based reproducibility
 * application-level prediction workflows
+* prediction monitoring
+* data-quality monitoring
+* reference-based drift analysis
+* outcome-based performance monitoring
+* sustained degradation detection
 
 It is not yet intended to represent:
 
@@ -1364,6 +1619,8 @@ It is not yet intended to represent:
 * a production-scale data warehouse
 * a real-time streaming system
 * a full BDG2-scale industrial deployment
+* a durable production monitoring datastore
+* an autonomous retraining system
 
 ---
 
@@ -1380,6 +1637,10 @@ Clear Data Boundaries
     +
 Temporal Integrity
     +
+Baseline Awareness
+    +
+Operational Observability
+    +
 Simple Local Infrastructure
 ```
 
@@ -1395,24 +1656,46 @@ Validation
 Feature Engineering
   ↓
 Parquet
-  ├───────────────┐
-  │               │
-  ▼               ▼
-ML Pipeline    Application
-  │               │
-  ▼               ▼
-MLflow         Express API
-  │               │
-  ▼               │
-Registry          │
-  │               │
-  ▼               │
-FastAPI ──────────┘
+  ├──────────────────┐
+  │                  │
+  ▼                  ▼
+ML Pipeline       Application
+  │                  │
+  ▼                  ▼
+MLflow           Express API
+  │                  │
+  ▼                  │
+Registry             │
+  │                  │
+  ▼                  │
+FastAPI ─────────────┘
+  │
+  ▼
+Prediction
+  │
+  ├── Data Quality
+  ├── Drift
+  ├── Performance
+  └── Service Health
   │
   ▼
 Next.js
 ```
 
-The data layer is now sufficient to support the completed Phase 1 ML pipeline, the Phase 3 application, and the Phase 4 ML lifecycle and serving infrastructure.
+The persistence baseline provides an additional forecasting path:
 
-Future phases will extend this foundation toward operational ingestion, monitoring, drift detection, prediction storage, and controlled retraining without prematurely replacing the current simple and reproducible architecture.
+```text
+Historical observations
+          ↓
+Persistence baseline
+          ↓
+FastAPI
+          ↓
+Next.js
+```
+
+when no learned model has been promoted for production serving.
+
+The data layer is sufficient to support the completed Phase 1 ML pipeline, the Phase 3 application, the Phase 4 ML lifecycle and serving infrastructure, and the Phase 5 monitoring and observability layer.
+
+Future phases can extend this foundation toward live operational ingestion, persistent telemetry, stronger dataset versioning, controlled retraining, and deployment without prematurely replacing the current simple and reproducible architecture.
