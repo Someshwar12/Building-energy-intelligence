@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from fastapi.testclient import TestClient
@@ -55,9 +55,65 @@ class FakeLoader:
         return True
 
 
+class FakeUnreadyLoader(FakeLoader):
+    @property
+    def is_ready(self):
+        return False
+
+
+class FakeBaselineLoader(FakeLoader):
+    model_name = "persistence"
+    model_version = "baseline"
+    serving_mode = "baseline"
+
+    @property
+    def model(self):
+        raise AssertionError(
+            "Baseline serving must not access a learned model."
+        )
+
+
 @pytest.fixture
 def client(monkeypatch):
     loader = FakeLoader()
+
+    monkeypatch.setattr(
+        main_module,
+        "model_loader",
+        loader,
+    )
+    monkeypatch.setattr(
+        main_module,
+        "inference_service",
+        InferenceService(loader),
+    )
+
+    with TestClient(main_module.app) as test_client:
+        yield test_client
+
+
+@pytest.fixture
+def unready_client(monkeypatch):
+    loader = FakeUnreadyLoader()
+
+    monkeypatch.setattr(
+        main_module,
+        "model_loader",
+        loader,
+    )
+    monkeypatch.setattr(
+        main_module,
+        "inference_service",
+        InferenceService(loader),
+    )
+
+    with TestClient(main_module.app) as test_client:
+        yield test_client
+
+
+@pytest.fixture
+def baseline_client(monkeypatch):
+    loader = FakeBaselineLoader()
 
     monkeypatch.setattr(
         main_module,
@@ -81,7 +137,7 @@ def make_payload(history_count=168):
         24,
         0,
         0,
-        tzinfo=timezone.utc,
+        tzinfo=UTC,
     )
 
     history = []
@@ -177,7 +233,7 @@ def test_predict_rejects_non_consecutive_history(client):
             24,
             0,
             0,
-            tzinfo=timezone.utc,
+            tzinfo=UTC,
         )
         + timedelta(hours=102)
     ).isoformat()
@@ -212,3 +268,43 @@ def test_predict_rejects_invalid_building_metadata(client):
     )
 
     assert response.status_code == 422
+
+
+def test_predict_rejects_when_service_is_not_ready(
+    unready_client,
+):
+    response = unready_client.post(
+        "/predict",
+        json=make_payload(),
+    )
+
+    assert response.status_code == 503
+    assert response.json()["detail"] == (
+        "Model service is not ready."
+    )
+
+
+def test_ready_reports_unready_service(unready_client):
+    response = unready_client.get("/ready")
+
+    assert response.status_code == 503
+
+
+def test_predict_endpoint_uses_baseline_serving_mode(
+    baseline_client,
+):
+    payload = make_payload()
+
+    response = baseline_client.post(
+        "/predict",
+        json=payload,
+    )
+
+    assert response.status_code == 200
+
+    body = response.json()
+
+    assert body["building_id"] == "test_building"
+    assert body["predicted_energy_kwh"] == 267.0
+    assert body["model_name"] == "persistence"
+    assert body["model_version"] == "baseline"

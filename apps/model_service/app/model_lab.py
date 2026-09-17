@@ -6,7 +6,6 @@ from typing import Any
 import mlflow
 from mlflow import MlflowClient
 
-
 BASELINE_REPORT_PATH = (
     Path(__file__).resolve().parents[3]
     / "reports"
