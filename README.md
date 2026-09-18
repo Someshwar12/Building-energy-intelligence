@@ -4,14 +4,18 @@
 
 ### End-to-end ML forecasting and MLOps for building energy systems
 
-<p>
-A full-stack machine learning system for next-hour electricity forecasting,
-model evaluation, production inference, monitoring, and controlled model lifecycle management.
-</p>
+<p><em>
+A full-stack machine learning system for next-hour electricity forecasting, model evaluation, production inference,
+monitoring, and controlled model lifecycle management.
+</em></p>
 
 <p>
-<strong>Python</strong> · <strong>scikit-learn</strong> · <strong>FastAPI</strong> ·
-<strong>Next.js</strong> · <strong>MLflow</strong> · <strong>Docker</strong>
+<img src="https://img.shields.io/badge/Python-3776AB?style=flat-square&logo=python&logoColor=white" alt="Python">
+<img src="https://img.shields.io/badge/scikit--learn-F7931E?style=flat-square&logo=scikit-learn&logoColor=white" alt="scikit-learn">
+<img src="https://img.shields.io/badge/FastAPI-009688?style=flat-square&logo=fastapi&logoColor=white" alt="FastAPI">
+<img src="https://img.shields.io/badge/Next.js-000000?style=flat-square&logo=next.js&logoColor=white" alt="Next.js">
+<img src="https://img.shields.io/badge/MLflow-0194E2?style=flat-square&logo=mlflow&logoColor=white" alt="MLflow">
+<img src="https://img.shields.io/badge/Docker-2496ED?style=flat-square&logo=docker&logoColor=white" alt="Docker">
 </p>
 
 <p>
