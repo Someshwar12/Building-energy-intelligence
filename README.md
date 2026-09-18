@@ -2,25 +2,24 @@
 
 # Building & Energy Intelligence Platform
 
-### End-to-end ML forecasting and MLOps for building energy intelligence
+### End-to-end ML forecasting and MLOps for building energy systems
 
 <p>
-A production-oriented portfolio system covering the complete ML lifecycle:
-<strong>data → training → evaluation → serving → monitoring → controlled retraining</strong>
+A full-stack machine learning system for next-hour electricity forecasting,
+model evaluation, production inference, monitoring, and controlled model lifecycle management.
 </p>
 
 <p>
-<strong>Python · scikit-learn · FastAPI · Next.js · MLflow · Docker</strong>
+<strong>Python</strong> · <strong>scikit-learn</strong> · <strong>FastAPI</strong> ·
+<strong>Next.js</strong> · <strong>MLflow</strong> · <strong>Docker</strong>
 </p>
 
 <p>
-<a href="https://github.com/Someshwar12/building-energy-intelligence">View Repository</a>
-&nbsp; · &nbsp;
-<strong>64 tests passing</strong>
-&nbsp; · &nbsp;
-<strong>CPU-first</strong>
-&nbsp; · &nbsp;
-<strong>MIT License</strong>
+<a href="https://github.com/Someshwar12/building-energy-intelligence">Repository</a>
+&nbsp;&nbsp;·&nbsp;&nbsp;
+64 tests passing
+&nbsp;&nbsp;·&nbsp;&nbsp;
+MIT License
 </p>
 
 </div>
@@ -29,157 +28,198 @@ A production-oriented portfolio system covering the complete ML lifecycle:
 
 ## Overview
 
-The <strong>Building & Energy Intelligence Platform</strong> is an end-to-end machine-learning application for <strong>next-hour building electricity consumption forecasting</strong>.
+Building & Energy Intelligence Platform is an end-to-end ML/MLOps application built around **next-hour building electricity consumption forecasting**.
 
-It was deliberately built as a complete engineering system rather than a standalone notebook. The repository connects historical data, validation, feature engineering, model evaluation, inference, a web application, experiment tracking, model versioning, monitoring, controlled retraining, promotion decisions, and rollback.
+The project treats forecasting as a system rather than a single model. Historical building, weather, and temporal data are transformed into model-ready features, evaluated against explicit forecasting baselines, tracked through MLflow, exposed through a FastAPI inference service, and surfaced through a Next.js application.
 
-The central principle is:
-
-> <strong>A trained model is not automatically a production model.</strong>
-
-A learned model must demonstrate measurable value over a simple persistence baseline before it can receive the production alias. If it does not, the platform retains the baseline serving strategy instead of forcing a deployment.
-
----
-
-## Project Goals
-
-### 🎓 Graduate admissions
-
-The project demonstrates practical depth across:
-
-- Machine learning and statistical evaluation
-- Data processing and feature engineering
-- API and application architecture
-- Software engineering
-- Testing and CI
-- Docker and service orchestration
-- Experiment tracking and model registries
-- Monitoring and lifecycle design
-- Reproducibility and technical documentation
-
-### 💼 Internships and Werkstudent roles
-
-The same system demonstrates how an ML model can become part of a real software product:
+The lifecycle continues beyond inference:
 
 ```text
 Data
- ↓
+  ↓
 Validation
- ↓
+  ↓
 Feature Engineering
- ↓
+  ↓
+Baseline Evaluation
+  ↓
 Model Training
- ↓
+  ↓
 Evaluation
- ↓
-Model Registry
- ↓
-Inference API
- ↓
-Web Application
- ↓
+  ↓
+MLflow Registry
+  ↓
+Promotion Gate
+  ↓
+Inference
+  ↓
 Monitoring
- ↓
-Controlled Retraining
- ↓
-Promotion / Rejection
- ↓
+  ↓
+Retraining Eligibility
+  ↓
+Candidate Retraining
+  ↓
+Promote / Reject
+  ↓
 Rollback
 ```
 
-The project is therefore relevant to ML, MLOps, Data Science, AI Engineering, and ML-adjacent software engineering roles.
+A central design decision is that **a trained model is not automatically a production model**. A learned candidate must demonstrate value over the persistence baseline before it can receive the production alias.
 
 ---
 
-# Product
+## System at a Glance
 
-The web application provides dedicated interfaces for:
-
-| Area | Purpose |
+| Dimension | Implementation |
 |---|---|
-| Buildings | Explore individual buildings and their energy context |
-| Consumption | Inspect electricity-consumption behavior |
-| Forecasts | Use the next-hour forecasting functionality |
-| Anomalies | Surface detected consumption anomalies |
-| Model Lab | Inspect models, experiments, lifecycle state, and baseline comparisons |
-| Monitoring | Inspect service health, data quality, drift, performance, and reliability |
-
-The frontend is designed as a product interface rather than a collection of technical debug screens.
+| Prediction task | Next-hour building electricity consumption |
+| Dataset | BDG2 |
+| Buildings | 12 |
+| Historical period | 2016-01-01 → 2017-12-31 |
+| Processed observations | 210,528 |
+| Temporal context | 168 hourly observations |
+| Learned models | Ridge, Random Forest, HistGradientBoosting |
+| Primary baseline | Persistence |
+| Model tracking | MLflow |
+| Model registry | MLflow Model Registry |
+| Inference | FastAPI |
+| Frontend | Next.js / React |
+| Deployment | Docker Compose |
+| Monitoring | Data quality, drift, performance, service state |
+| Lifecycle | Candidate → evaluation → promotion/rejection → rollback |
+| Compute target | CPU-first, normal development laptop |
 
 ---
 
 # Architecture
 
-```mermaid
-flowchart TB
-    A[BDG2 Historical Data] --> B[Data Validation]
-    B --> C[Feature Engineering]
-    C --> D[Processed Features]
-
-    D --> E[Baseline Evaluation]
-    D --> F[Model Training]
-    F --> G[Model Evaluation]
-
-    E --> H["Promotion Gate"]
-    G --> H
-    G --> I[MLflow Tracking]
-    I --> J[MLflow Registry]
-    J --> H
-
-    H -->|Approved| K["@production"]
-    H -->|Rejected| L["Rejected Candidate"]
-
-    K --> M[FastAPI Model Service]
-    M --> N[Application API]
-    N --> O[Next.js Web App]
-
-    M --> P[Monitoring]
-    P --> Q["Drift / Performance / Data Quality"]
-    Q --> R[Retraining Eligibility]
-    R --> S[Candidate Retraining]
-    S --> I
-
-    K --> T[Rollback]
-    T --> J
+```text
+                         ┌─────────────────────────────┐
+                         │        Next.js Web           │
+                         │            :3000             │
+                         │ Buildings · Forecasts       │
+                         │ Model Lab · Monitoring       │
+                         └──────────────┬──────────────┘
+                                        │
+                                        ▼
+                         ┌─────────────────────────────┐
+                         │       Application API        │
+                         │            :4000             │
+                         │ Buildings · Consumption      │
+                         │ Forecasts · Anomalies        │
+                         └──────────────┬──────────────┘
+                                        │
+                                        ▼
+                         ┌─────────────────────────────┐
+                         │       FastAPI ML Service     │
+                         │            :8000             │
+                         │ Validation · Features        │
+                         │ Inference · Monitoring       │
+                         └──────────────┬──────────────┘
+                                        │
+                         ┌──────────────┴──────────────┐
+                         │                             │
+                         ▼                             ▼
+              ┌─────────────────────┐       ┌─────────────────────┐
+              │        MLflow       │       │   ML / Data Layer   │
+              │        :5000        │       │ Features · Training │
+              │ Tracking + Registry │       │ Evaluation · Lifecycle│
+              └─────────────────────┘       └─────────────────────┘
 ```
 
-### Runtime services
+### ML lifecycle architecture
 
-| Service | Port | Responsibility |
-|---|---:|---|
-| Web | 3000 | Next.js frontend |
-| API | 4000 | Application API |
-| Model Service | 8000 | FastAPI inference and ML endpoints |
-| MLflow | 5000 | Experiment tracking and model registry |
-
-All four services are orchestrated with Docker Compose.
+```text
+Historical Data
+      │
+      ▼
+Data Validation
+      │
+      ▼
+Feature Engineering
+      │
+      ├──────────────► Baseline Evaluation
+      │
+      ▼
+Candidate Training
+      │
+      ▼
+Experiment Tracking
+      │
+      ▼
+Model Registry
+      │
+      ▼
+Candidate Evaluation
+      │
+      ▼
+┌───────────────────────────────┐
+│        Promotion Gates        │
+│                               │
+│  1. Model evaluation          │
+│  2. Persistence comparison    │
+│  3. Production comparison     │
+└───────────────┬───────────────┘
+                │
+          ┌─────┴─────┐
+          ▼           ▼
+       Reject       Promote
+          │           │
+          │           ▼
+          │      @production
+          │           │
+          └─────┬─────┘
+                ▼
+            Inference
+                │
+                ▼
+           Monitoring
+                │
+                ▼
+     Retraining Eligibility
+                │
+                ▼
+       Candidate Retraining
+```
 
 ---
 
-# Machine Learning
+# Data and Feature Engineering
 
-## Prediction task
+The ML pipeline is based on the BDG2 building-energy dataset.
 
-The primary task is:
-
-<strong>Next-hour building electricity consumption forecasting</strong>
-
-Target:
+### Source data
 
 ```text
-target_next_hour_kwh
+data/raw/bdg2/
+├── electricity_cleaned.csv
+├── metadata.csv
+└── weather.csv
 ```
 
-The inference pipeline uses <strong>168 hourly historical observations</strong> to construct temporal features.
+The canonical processed dataset is:
 
-## Feature groups
+```text
+data/processed/phase1_features.parquet
+```
 
-### Energy history
-- Historical electricity consumption
-- Lagged energy values
-- Rolling energy statistics
+It contains:
 
-### Weather
+```text
+210,528 rows
+44 columns
+12 buildings
+2016-01-01 → 2017-12-31
+```
+
+### Feature groups
+
+**Energy history**
+- Lagged electricity consumption
+- Rolling consumption statistics
+- Recent temporal consumption history
+
+**Weather**
 - Air temperature
 - Dew temperature
 - Sea-level pressure
@@ -188,43 +228,81 @@ The inference pipeline uses <strong>168 hourly historical observations</strong> 
 - Cloud coverage
 - Precipitation depth
 
-### Building metadata
+**Building metadata**
 - Building ID
 - Site ID
 - Primary use
 - Floor area / square feet
 
-### Calendar
+**Calendar**
 - Hour
 - Day
 - Day of week
 - Month
 
-### Thermal features
+**Derived thermal features**
 - Heating degree hours
 - Cooling degree hours
 
+The inference service reconstructs the required temporal features from a **168-hour history window**, keeping feature construction inside the ML service boundary rather than requiring clients to submit model-specific feature vectors.
+
 ---
 
-# Models and Evaluation
+# Machine Learning
 
-Three learned model families are evaluated:
+## Prediction Objective
 
-- Ridge
-- Random Forest
-- HistGradientBoosting
+The system predicts:
 
-The project uses multiple metrics:
+```text
+target_next_hour_kwh
+```
 
-- MAE
-- RMSE
-- CVRMSE
-- NMAE
-- Macro-building NMAE
+for a given building and prediction timestamp.
 
-The macro-building metric is particularly important for lifecycle decisions because it prevents large buildings from dominating an aggregate result.
+The model combines:
 
-### Original evaluation
+```text
+Historical energy
++ Weather
++ Building metadata
++ Calendar features
++ Lag features
++ Rolling features
++ Thermal features
+        ↓
+Next-hour electricity consumption
+```
+
+---
+
+## Learned Models
+
+Three model families were evaluated:
+
+| Model | Role |
+|---|---|
+| Ridge | Regularized linear reference |
+| Random Forest | Nonlinear ensemble |
+| HistGradientBoosting | Gradient-boosted nonlinear model |
+
+The system deliberately evaluates multiple model families rather than coupling the lifecycle to one algorithm.
+
+---
+
+## Evaluation Metrics
+
+The project evaluates:
+
+- **MAE** — Mean Absolute Error
+- **RMSE** — Root Mean Squared Error
+- **CVRMSE** — Coefficient of Variation of RMSE
+- **NMAE** — Normalized Mean Absolute Error
+- **Macro-building NMAE** — average normalized error across buildings
+
+Macro-building NMAE is used for lifecycle decisions so that aggregate performance is not dominated by buildings with larger energy consumption.
+
+### Original learned-model evaluation
 
 | Model | Validation MAE | Validation RMSE | Validation CVRMSE | Validation NMAE | Validation Macro-Building NMAE | Test MAE | Test RMSE | Test NMAE |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|
@@ -236,7 +314,7 @@ The macro-building metric is particularly important for lifecycle decisions beca
 
 # Baseline-First Model Governance
 
-The learned models are evaluated against explicit baselines:
+The project evaluates learned models against simple forecasting strategies:
 
 ```text
 pred_persistence
@@ -244,12 +322,15 @@ pred_previous_day
 pred_previous_week
 ```
 
-The primary operational baseline is <strong>pred_persistence</strong>: the next value is predicted using the most recent observed energy value.
+The primary operational baseline is **persistence**:
+
+```text
+prediction = latest observed energy value
+```
 
 The original evaluation recorded:
 
 ```text
-Best baseline:
 pred_persistence
 NMAE = 0.0592740184411023
 ```
@@ -260,121 +341,126 @@ The production promotion metric is:
 validation_macro_building_nmae
 ```
 
-A learned candidate must beat the corresponding persistence baseline before it can receive the production alias.
-
-Conceptually:
+The fundamental gate is:
 
 ```text
-learned metric < baseline metric
-        ↓
-    eligible for promotion
-
-otherwise
-        ↓
-      reject
+learned model
+      │
+      ▼
+Does it beat persistence?
+      │
+   ┌──┴──┐
+   │     │
+  yes    no
+   │     │
+   ▼     ▼
+continue reject
+   │
+   ▼
+compare with production
+   │
+   ▼
+promotion decision
 ```
 
-This makes model complexity earn its place rather than assuming that a learned model is automatically better.
+This is one of the defining engineering properties of the system: **model complexity must demonstrate value over a simple baseline.**
 
 ---
 
-# MLOps Lifecycle
+# Model Registry and Experiment Tracking
+
+MLflow provides:
+
+- Experiment tracking
+- Model registration
+- Model versioning
+- Model signatures
+- Lifecycle metadata
+- Promotion metadata
+- Rejection metadata
+- Rollback through model aliases
+
+Registered model:
 
 ```text
-NEW DATA
-   ↓
-DATA VALIDATION
-   ↓
-MONITORING
-   ↓
-POSSIBLE DEGRADATION
-   ↓
-RETRAINING ELIGIBILITY
-   ↓
-CANDIDATE TRAINING
-   ↓
-EXPERIMENT TRACKING
-   ↓
-MODEL REGISTRATION
-   ↓
-EVALUATION
-   ↓
-COMPARE WITH PRODUCTION
-   ↓
-COMPARE WITH PERSISTENCE BASELINE
-   ↓
-PROMOTION DECISION
-   ├───────────────┐
-   ↓               ↓
-REJECT          PROMOTE
-   │               │
-   │               ↓
-   │        NEW PRODUCTION
-   │               │
-   └──────→ INFERENCE
-                   ↓
-              MONITORING
+building-energy-forecast
 ```
 
-Key rules:
+Production selection:
 
-- Drift does not automatically trigger retraining.
-- Candidate models are isolated from production.
-- Training does not automatically imply deployment.
-- Registration does not imply production.
-- Promotion requires explicit evaluation gates.
-- Rejected candidates remain auditable.
-- Rollback uses the MLflow production alias.
-- The system never fabricates a production state.
+```text
+@production
+```
+
+The distinction is intentional:
+
+```text
+Registered Model Version
+          ≠
+Production Model
+```
+
+A version can exist in the registry without being served.
 
 ---
 
-# Controlled Retraining
+# Inference Service
 
-Phase 6 introduced a bounded production-data simulation so the lifecycle can be exercised without claiming to have live external building telemetry.
-
-Generated datasets:
+The FastAPI model service provides the runtime inference boundary.
 
 ```text
-data/interim/production/normal_production.parquet
-data/interim/production/shifted_production.parquet
+Prediction Request
+        │
+        ▼
+Schema Validation
+        │
+        ▼
+Serving Mode
+    ┌───┴────┐
+    │        │
+Baseline  Learned
+    │        │
+    │        ▼
+    │   Feature Construction
+    │        │
+    │        ▼
+    │   Production Model
+    │        │
+    └────┬───┘
+         ▼
+     Prediction
+         │
+         ▼
+ Non-negative output
+         │
+         ▼
+ Prediction Response
 ```
 
-Dataset size:
+The service supports MLflow-backed production serving.
+
+Production configuration:
 
 ```text
-12 buildings × 168 hourly observations = 2,016 rows
+MODEL_SOURCE=mlflow
+MLFLOW_MODEL_NAME=building-energy-forecast
+MLFLOW_MODEL_ALIAS=production
 ```
 
-The shifted scenario introduces controlled changes to selected weather variables and target behavior.
+When no learned production model exists, the service can explicitly operate in **baseline serving mode** using persistence.
 
-Candidate retraining produced:
-
-| Version | Model | Candidate NMAE | Persistence NMAE | Decision |
-|---|---|---:|---:|---|
-| v4 | Ridge | 13.008031 | 0.219467 | Rejected |
-| v5 | Random Forest | 9.466449 | 0.219467 | Rejected |
-| v6 | HistGradientBoosting | 2.904410 | 0.219467 | Rejected |
-
-All three candidates failed the defined persistence-baseline gate.
-
-Therefore the final state intentionally has:
-
-```text
-@production = no learned model
-```
-
-The platform continues with the persistence serving strategy.
-
-This is a deliberate result, not an incomplete lifecycle demonstration. The project does not modify the simulator, models, thresholds, or promotion logic merely to manufacture a successful promotion.
+The serving state is observable through the monitoring and Model Lab interfaces.
 
 ---
 
 # Monitoring
 
-The monitoring system covers:
+Monitoring is separated from training and deployment.
 
 ### Data quality
+
+The system checks for:
+
 - Schema validity
 - Missingness
 - Invalid values
@@ -382,12 +468,18 @@ The monitoring system covers:
 - Temporal gaps
 - Frequency consistency
 
-### Drift
-- Reference distribution
-- Recent distribution
+### Feature drift
+
+The system compares:
+
+- Reference distributions
+- Recent distributions
 - Drift diagnostics
 
-### Prediction performance
+### Model performance
+
+When prediction/actual pairs are available:
+
 - MAE
 - RMSE
 - NMAE
@@ -397,58 +489,154 @@ The monitoring system covers:
 - Persistence baseline comparison
 
 ### Service reliability
+
+The system exposes:
+
 - Readiness
 - Serving mode
 - Latency
 - Operational state
 
-Monitoring provides evidence for lifecycle decisions but does not automatically retrain the model.
+Drift is treated as evidence, not as an automatic retraining command.
+
+```text
+Drift
+  +
+Performance evidence
+  +
+Data quality
+  +
+Service state
+       ↓
+Retraining Eligibility
+```
 
 ---
 
-# Inference
+# Controlled Retraining
 
-The FastAPI model service provides a clean inference boundary:
+The final lifecycle includes controlled production-data simulation and candidate retraining.
 
-```text
-Prediction Request
-       ↓
-Schema Validation
-       ↓
-Serving Mode
-   ┌───┴────┐
-   ↓        ↓
-Baseline  Learned
-   │        │
-   │        ↓
-   │   Feature Construction
-   │        ↓
-   │   Production Model
-   │        ↓
-   └────→ Prediction
-             ↓
-       Non-negative Output
-             ↓
-       Prediction Response
-```
-
-The service supports MLflow-backed production serving and local artifact loading for testing.
-
-Production configuration uses:
+Generated datasets:
 
 ```text
-MODEL_SOURCE=mlflow
-MLFLOW_MODEL_NAME=building-energy-forecast
-MLFLOW_MODEL_ALIAS=production
+data/interim/production/
+├── normal_production.parquet
+└── shifted_production.parquet
 ```
 
-When no learned production model exists, the service can explicitly operate in <strong>baseline</strong> serving mode.
+Simulation size:
 
-That fallback is observable and is not presented as a learned model.
+```text
+12 buildings × 168 hourly observations
+= 2,016 rows
+```
+
+The shifted scenario introduces controlled changes to selected weather variables and target behavior.
+
+Candidate retraining evaluates the same three learned model families.
+
+### Phase 6 candidate results
+
+| Version | Model | Candidate NMAE | Persistence NMAE | Lifecycle Decision |
+|---|---|---:|---:|---|
+| v4 | Ridge | 13.008031 | 0.219467 | Rejected |
+| v5 | Random Forest | 9.466449 | 0.219467 | Rejected |
+| v6 | HistGradientBoosting | 2.904410 | 0.219467 | Rejected |
+
+All candidates failed the defined persistence-baseline gate.
+
+Therefore the final registry state intentionally contains:
+
+```text
+@production
+    ↓
+No learned model
+```
+
+The platform continues with the persistence serving strategy.
+
+This is not a missing feature or an artificially incomplete lifecycle. The system is behaving according to its defined production gate.
 
 ---
 
-# Project Structure
+# Candidate Isolation and Rollback
+
+Retraining never silently replaces production.
+
+```text
+                 ┌───────────────┐
+                 │   Production  │
+                 └───────┬───────┘
+                         │
+                         │ remains unchanged
+                         │
+                 ┌───────▼───────┐
+                 │    Candidate  │
+                 └───────┬───────┘
+                         │
+                   evaluation
+                    ┌────┴────┐
+                    ▼         ▼
+                 Reject     Promote
+                              │
+                              ▼
+                         @production
+```
+
+Rejected candidates remain in MLflow for auditability.
+
+Rollback is implemented through the MLflow production alias and requires an existing learned production model.
+
+If no learned production model exists, rollback is refused rather than simulated with fabricated state.
+
+---
+
+# Model Lifecycle Scripts
+
+Important executable lifecycle components include:
+
+```text
+scripts/
+├── phase1_build_features.py
+├── phase1_train.py
+├── simulate_production_data.py
+├── retrain_candidate.py
+├── promote_model.py
+└── rollback_model.py
+```
+
+Lifecycle logic is also organized under:
+
+```text
+ml/lifecycle/
+└── eligibility.py
+```
+
+This keeps lifecycle decisions explicit and testable rather than burying them inside application code.
+
+---
+
+# Web Application
+
+The frontend exposes the ML system through dedicated application views.
+
+| Route | Purpose |
+|---|---|
+| `/` | Application landing page |
+| `/buildings` | Building overview |
+| `/buildings/[buildingId]` | Building-level view |
+| `/consumption` | Consumption analysis |
+| `/forecasts` | Forecasting |
+| `/anomalies` | Anomaly analysis |
+| `/model-lab` | Model and lifecycle inspection |
+| `/monitoring` | Operational and ML monitoring |
+
+The **Model Lab** exposes registry and lifecycle information, while **Monitoring** exposes operational, data-quality, drift, and performance information.
+
+---
+
+# Repository Structure
 
 ```text
 building-energy-intelligence/
@@ -456,7 +644,7 @@ building-energy-intelligence/
 ├── apps/
 │   ├── web/                    # Next.js frontend
 │   ├── api/                    # Application API
-│   └── model_service/          # FastAPI ML inference service
+│   └── model_service/          # FastAPI ML service
 │
 ├── ml/
 │   ├── ingestion/              # Data ingestion
@@ -476,9 +664,15 @@ building-energy-intelligence/
 ├── configs/                    # Configuration
 ├── scripts/                    # Reproducible project/lifecycle scripts
 ├── docker/                     # Dockerfiles
-├── .github/workflows/          # CI
+├── .github/workflows/          # CI workflows
 │
-├── docs/                       # Living technical documentation
+├── docs/
+│   ├── architecture.md
+│   ├── data.md
+│   ├── decision_log.md
+│   ├── ml.md
+│   ├── phases.md
+│   └── phase6_completion.md
 │
 ├── data/
 │   ├── raw/
@@ -501,53 +695,23 @@ building-energy-intelligence/
 
 # Technology Stack
 
-<table>
-<tr><th>Layer</th><th>Technology</th></tr>
-<tr><td>ML / Data</td><td>Python, NumPy, Pandas, scikit-learn, PyArrow</td></tr>
-<tr><td>ML Lifecycle</td><td>MLflow</td></tr>
-<tr><td>Backend</td><td>FastAPI, Uvicorn, TypeScript</td></tr>
-<tr><td>Frontend</td><td>Next.js, React, TypeScript, Recharts</td></tr>
-<tr><td>Testing / Quality</td><td>Pytest, Ruff, TypeScript type checking</td></tr>
-<tr><td>Deployment</td><td>Docker, Docker Compose</td></tr>
-<tr><td>Version Control</td><td>Git, GitHub</td></tr>
-</table>
+| Layer | Technologies |
+|---|---|
+| Data / ML | Python 3.11, NumPy, Pandas, scikit-learn, PyArrow |
+| ML lifecycle | MLflow |
+| Inference | FastAPI, Uvicorn |
+| Application API | TypeScript |
+| Frontend | Next.js, React, TypeScript, Recharts |
+| Testing | Pytest |
+| Code quality | Ruff, TypeScript type checking |
+| Infrastructure | Docker, Docker Compose |
+| Version control | Git, GitHub |
 
-The ML stack is intentionally <strong>CPU-first</strong> and suitable for a normal development laptop. It does not require GPUs, large language models, transformers, or autonomous agents.
-
----
-
-# Dataset
-
-The project uses the <strong>BDG2</strong> building-energy dataset.
-
-Final processed dataset:
-
-```text
-210,528 rows
-44 columns
-12 buildings
-2016-01-01 → 2017-12-31
-```
-
-Canonical processed dataset:
-
-```text
-data/processed/phase1_features.parquet
-```
-
-Raw sources:
-
-```text
-data/raw/bdg2/electricity_cleaned.csv
-data/raw/bdg2/metadata.csv
-data/raw/bdg2/weather.csv
-```
-
-Detailed data assumptions and pipeline documentation are maintained in `docs/data.md`.
+The project is intentionally CPU-first and designed to run on a normal development laptop. It does not depend on GPUs, large language models, transformers, or autonomous agents.
 
 ---
 
-# Getting Started
+# Running Locally
 
 ## Prerequisites
 
@@ -565,134 +729,86 @@ python -m venv .venv
 pip install -e ".[dev]"
 ```
 
-## Run the complete application
+## Run the complete stack
 
 ```powershell
 docker compose up --build
 ```
 
-After the initial build:
+After the images have been built:
 
 ```powershell
 docker compose up
 ```
 
-Services:
+The local services are:
 
-| Service | Address |
-|---|---|
-| Web | http://localhost:3000 |
-| API | http://localhost:4000 |
-| Model Service | http://localhost:8000 |
-| MLflow | http://localhost:5000 |
+| Service | Port | Purpose |
+|---|---:|---|
+| Web | `3000` | Next.js application |
+| API | `4000` | Application API |
+| Model Service | `8000` | FastAPI inference service |
+| MLflow | `5000` | Tracking and model registry |
+
+Open the relevant `localhost` address in your browser after the stack is running.
 
 ---
 
 # Verification
 
-The final project verification completed successfully.
+The final implementation was verified across the Python ML/lifecycle layer and the TypeScript application layer.
 
 ```text
-Python tests       64 passed, 2 warnings
-Ruff               All checks passed
-API typecheck      Passed
-Web lint           Passed
-Web production build Passed
+Python test suite       64 passed, 2 warnings
+Ruff                    All checks passed
+API typecheck           Passed
+Web lint                Passed
+Web production build    Passed
 ```
 
----
-
-# API Surface
-
-The model service exposes:
-
-```text
-/health
-/ready
-/predict
-
-/monitoring/summary
-/monitoring/drift
-/monitoring/performance
-/monitoring/outcomes
-
-/model-lab/summary
-/model-lab/versions
-/model-lab/runs
-```
-
-The web application includes:
-
-```text
-/
-/anomalies
-/buildings
-/buildings/[buildingId]
-/consumption
-/forecasts
-/model-lab
-/monitoring
-```
+The test suite covers data validation, feature logic, model behavior, inference, monitoring/lifecycle components, production simulation, and retraining eligibility.
 
 ---
 
-# Documentation
+# Engineering Decisions
 
-The `docs/` directory is living project documentation.
+Several decisions define the system's behavior:
 
-| Document | Purpose |
-|---|---|
-| `architecture.md` | Final system architecture and component boundaries |
-| `data.md` | Dataset, pipeline, features, storage, and assumptions |
-| `ml.md` | ML methodology, evaluation, serving, and lifecycle |
-| `phases.md` | Final implementation history from Phase 0 through Phase 6 |
-| `decision_log.md` | Architectural and engineering decisions |
-| `phase6_completion.md` | Final lifecycle implementation and verification |
+### Baselines are first-class evaluation artifacts
 
----
+A learned model is not evaluated only against other learned models. Persistence remains an explicit operational reference.
 
-# Project Status
+### Production is an explicit state
 
-<div align="center">
+A registered model version does not become production until the promotion process assigns `@production`.
 
-## ✅ Implementation Complete
+### Retraining is controlled
 
-<strong>Phase 0 → Phase 6</strong>
+Drift alone does not trigger automatic retraining. Retraining eligibility considers multiple signals.
 
-No Phase 7 is required for the defined project scope.
+### Candidates are isolated
 
-</div>
+A newly trained model cannot silently replace the serving model.
 
-Completed:
+### Rejection is a valid lifecycle outcome
 
-- [x] Data feasibility and validation
-- [x] Feature engineering
-- [x] Baseline forecasting
-- [x] Learned model training
-- [x] Model evaluation
-- [x] MLflow experiment tracking
-- [x] MLflow model registry
-- [x] FastAPI inference service
-- [x] Next.js web application
-- [x] Docker containerization
-- [x] Model Lab
-- [x] Monitoring
-- [x] Anomaly detection
-- [x] Automated testing
-- [x] CI verification
-- [x] Retraining eligibility
-- [x] Controlled production-data simulation
-- [x] Candidate retraining
-- [x] Promotion gate
-- [x] Candidate rejection
-- [x] Rollback mechanism
-- [x] Final documentation
+If a candidate fails the production gate, it remains rejected and production state is preserved.
+
+### Rollback is state-aware
+
+Rollback is available through the registry alias when a learned production model exists and is refused when there is nothing valid to roll back from.
+
+### Production state is honest
+
+The system does not fabricate a successful promotion simply to demonstrate the existence of a promotion mechanism.
 
 ---
 
-# Technical Honesty
+# Limitations and Scope
 
-This repository does <strong>not</strong> claim:
+The current implementation is a complete portfolio-scale ML/MLOps system, but its scope is explicit.
+
+It does not claim:
 
 - Live external building telemetry
 - Autonomous production retraining
@@ -702,47 +818,66 @@ This repository does <strong>not</strong> claim:
 - Commercial-scale deployment
 - Industrial production operation
 
-The simulated production datasets are explicitly used to exercise and verify the lifecycle.
+The Phase 6 production datasets are controlled simulations used to exercise the lifecycle.
+
+The persistence strategy remains the current operational serving path because the tested learned candidates did not satisfy the promotion gate.
 
 ---
 
-# What This Project Demonstrates
+# Documentation
 
-The most important outcome is not that one algorithm produced a particular error value.
+The repository contains detailed living documentation:
 
-It is that the system demonstrates the engineering discipline required to take ML beyond a notebook:
+| Document | Coverage |
+|---|---|
+| `docs/architecture.md` | System architecture and component boundaries |
+| `docs/data.md` | Dataset, validation, feature engineering, and data storage |
+| `docs/ml.md` | ML methodology, evaluation, serving, monitoring, and lifecycle |
+| `docs/phases.md` | Final implementation history from Phase 0 through Phase 6 |
+| `docs/decision_log.md` | Architectural and engineering decisions |
+| `docs/phase6_completion.md` | Final lifecycle implementation and verification |
 
-```text
-Can we validate the data?
-        ↓
-Can we build reproducible features?
-        ↓
-Does ML beat a simple baseline?
-        ↓
-Can we track and version the model?
-        ↓
-Can we serve it through an API?
-        ↓
-Can we observe it?
-        ↓
-Can we detect degradation?
-        ↓
-Can we retrain safely?
-        ↓
-Can we reject a bad candidate?
-        ↓
-Can we promote only when justified?
-        ↓
-Can we roll back when a learned production model exists?
-```
+---
 
-The final answer implemented by this project is a controlled ML lifecycle where <strong>model quality, lifecycle state, and production status remain explicitly distinguishable</strong>.
+# Project Status
+
+## Implementation Complete
+
+The defined implementation scope is complete through **Phase 6**.
+
+Completed:
+
+- Data feasibility and validation
+- Feature engineering
+- Baseline forecasting
+- Learned model training
+- Multi-metric evaluation
+- MLflow experiment tracking
+- MLflow model registry
+- Model signatures
+- FastAPI inference
+- Next.js application
+- Docker containerization
+- Model Lab
+- Monitoring
+- Anomaly detection
+- Automated testing
+- CI verification
+- Retraining eligibility
+- Controlled production-data simulation
+- Candidate retraining
+- Promotion gate
+- Candidate rejection
+- Rollback mechanism
+- Final technical documentation
+
+There is no Phase 7 in the defined project scope.
 
 ---
 
 # License
 
-This project is released under the <strong>MIT License</strong>.
+This project is licensed under the MIT License.
 
 See [`LICENSE`](LICENSE) for the full license text.
 
@@ -758,6 +893,6 @@ See [`LICENSE`](LICENSE) for the full license text.
 
 <br><br>
 
-<a href="https://github.com/Someshwar12/building-energy-intelligence">View the repository on GitHub</a>
+<a href="https://github.com/Someshwar12/building-energy-intelligence">GitHub Repository</a>
 
 </div>
