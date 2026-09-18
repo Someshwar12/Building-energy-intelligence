@@ -1,30 +1,68 @@
 # Project Phases
 
-This project is developed as a staged machine-learning and software engineering system.
+This document is the final phase record for the Building & Energy Intelligence Platform.
 
-Each phase adds a distinct layer to the platform while preserving the interfaces, contracts, and decisions established in previous phases.
+The project was developed as a staged machine-learning and software-engineering system. Each phase added a distinct capability while preserving the interfaces, contracts, evaluation principles, and engineering decisions established previously.
 
-The overall progression is:
+All planned implementation phases are complete.
+
+There is no Phase 7.
+
+The final project progression is:
+
+```text
+Phase 0 — Project Foundation
+        ↓
+Phase 1 — Data, Features & ML Baseline
+        ↓
+Phase 2 — ML Inference Service
+        ↓
+Phase 3 — Application Platform
+        ↓
+Phase 4 — MLOps & Model Lifecycle
+        ↓
+Phase 5 — Testing, CI & Observability
+        ↓
+Phase 6 — Controlled Retraining & Final Lifecycle
+````
+
+The final system therefore covers:
 
 ```text
 Data
+  ↓
+Validation
   ↓
 Feature Engineering
   ↓
 Machine Learning
   ↓
-ML Inference Service
+Experiment Tracking
+  ↓
+Model Registry
+  ↓
+Controlled Evaluation
+  ↓
+Inference Service
   ↓
 Application Platform
   ↓
-MLOps & Model Lifecycle
+Monitoring
   ↓
-Testing, CI & Observability
+Drift / Performance Detection
   ↓
-Controlled Retraining
+Retraining Eligibility
   ↓
-Deployment
-````
+Candidate Retraining
+  ↓
+Candidate Evaluation
+  ↓
+Promotion / Rejection
+  ↓
+Rollback Capability
+```
+
+The project remains intentionally local, CPU-first, reproducible, and laptop-runnable. It demonstrates an end-to-end ML/MLOps lifecycle rather than a production-scale cloud deployment.
 
 ---
 
@@ -36,22 +74,23 @@ Deployment
 
 ## Objective
 
-Establish the project repository, development environment, data source, project structure, and initial data understanding.
+Establish the repository, development environment, dataset, project structure, development conventions, and initial data understanding required for the subsequent machine-learning and application phases.
 
 ## Main Work
 
-* Project repository created
-* Python virtual environment established
-* Git and GitHub workflow established
-* BDG2 dataset acquired
-* Raw data organized
-* Initial dataset inspection performed
-* Project directory structure established
-* Development conventions established
+* Project repository created.
+* Git and GitHub workflow established.
+* Python virtual environment established.
+* BDG2 dataset acquired.
+* Raw data organized.
+* Initial dataset inspection performed.
+* Project directory structure established.
+* Development conventions established.
+* Initial documentation structure established.
 
-## Output
+## Outcome
 
-A reproducible project foundation for the subsequent ML and application phases.
+Phase 0 established the reproducible project foundation used by all subsequent phases.
 
 ---
 
@@ -63,19 +102,21 @@ A reproducible project foundation for the subsequent ML and application phases.
 
 ## Objective
 
-Build the first reproducible energy forecasting pipeline using the BDG2 dataset and establish a defensible ML benchmark.
+Build the first reproducible energy-forecasting pipeline using the Building Data Genome Project 2 dataset and establish a defensible machine-learning benchmark.
 
 ## Dataset
 
 The project uses the Building Data Genome Project 2 (BDG2) dataset.
 
-The selected working subset contains:
+The selected development population contains:
 
-* 12 buildings
-* hourly observations
-* electricity consumption
-* building metadata
-* weather information
+* 12 buildings.
+* 17,544 hourly observations per building.
+* 210,528 processed rows in total.
+* Electricity consumption.
+* Building metadata.
+* Weather information.
+* Historical observations covering 2016-01-01 through 2017-12-31.
 
 The canonical processed dataset is:
 
@@ -83,18 +124,9 @@ The canonical processed dataset is:
 data/processed/phase1_features.parquet
 ```
 
-The processed development dataset contains approximately:
-
-```text
-210,528 rows
-12 buildings
-```
-
-The 12 buildings describe the development dataset scope. They are not equivalent to runtime monitoring observations.
+The 12-building population defines the historical development and evaluation scope. It is not equivalent to runtime monitoring observations or simulated production observations.
 
 ## Data Pipeline
-
-The phase established:
 
 ```text
 Raw BDG2 Data
@@ -110,17 +142,19 @@ Processed Feature Dataset
 
 ## Feature Engineering
 
-Features include:
+The feature pipeline includes:
 
-* historical energy values
-* lag features
-* rolling mean features
-* rolling maximum features
-* weather variables
-* building metadata
-* calendar features
-* heating degree hours
-* cooling degree hours
+* Building identifiers.
+* Site information.
+* Primary-use metadata.
+* Building area information.
+* Weather variables.
+* Calendar features.
+* Historical energy features.
+* Lag features.
+* Rolling statistics.
+* Heating degree-hour features.
+* Cooling degree-hour features.
 
 The prediction target is:
 
@@ -130,50 +164,46 @@ target_next_hour_kwh
 
 representing next-hour electricity consumption.
 
-## Models Evaluated
+## Models and Baselines
 
-The initial benchmark included:
+The initial evaluation included:
 
-* Persistence baseline
-* Previous-day baseline
-* Previous-week baseline
-* Ridge Regression
-* Random Forest
-* HistGradientBoosting
+* Persistence baseline.
+* Previous-day baseline.
+* Previous-week baseline.
+* Ridge Regression.
+* Random Forest.
+* HistGradientBoosting.
 
-## Model Selection
+The persistence baseline established a strong reference point.
 
-The persistence strategy established a strong benchmark on the selected evaluation setup.
+Among the learned models in the original Phase 1 evaluation, Random Forest produced the strongest learned-model result under the validation macro-building NMAE criterion.
 
-Among the learned models, Random Forest provided the strongest learned-model result under the current validation macro-building NMAE selection criterion.
-
-The project therefore distinguishes:
+The project deliberately retains the distinction between:
 
 ```text
-Baseline:
+Operational reference:
 Persistence
 
-Strongest evaluated learned candidate:
+Learned models:
+Ridge
 Random Forest
+HistGradientBoosting
 ```
 
-The initial Random Forest artifact is:
-
-```text
-models/random_forest_phase1.joblib
-```
+The learned models are not automatically considered superior to the persistence strategy merely because they are more complex.
 
 ## Phase 1 Outcome
 
 Phase 1 established:
 
-* reproducible data preparation
-* feature engineering
-* train/validation/test evaluation
-* baseline comparison
-* model error analysis
-* ML artifacts
-* the initial ML input/output contract
+* Reproducible data preparation.
+* Feature engineering.
+* Train/validation/test evaluation.
+* Baseline comparison.
+* Building-aware error analysis.
+* ML artifacts.
+* Initial model input/output contracts.
 
 ---
 
@@ -185,7 +215,7 @@ Phase 1 established:
 
 ## Objective
 
-Turn the Phase 1 ML model into a standalone, validated inference service.
+Turn the Phase 1 forecasting system into a standalone, validated inference service.
 
 ## Architecture
 
@@ -198,46 +228,51 @@ Request Validation
   ↓
 Feature Construction
   ↓
-ML Model / Baseline
+ML Model / Persistence Baseline
   ↓
 Prediction Response
 ```
 
 ## Main Work
 
-* FastAPI inference service created
-* Model loading implemented
-* Model artifact validation implemented
-* Request schemas implemented
-* Prediction response schema implemented
-* Feature parity with Phase 1 maintained
-* 168-hour historical context requirement enforced
-* Health endpoint implemented
-* Readiness endpoint implemented
-* Prediction endpoint implemented
-* Structured error handling implemented
-* Logging implemented
-* Unit tests implemented
+* FastAPI inference service created.
+* Model loading implemented.
+* Model artifact validation implemented.
+* Request schemas implemented.
+* Prediction response schema implemented.
+* Feature parity with Phase 1 maintained.
+* 168-hour historical context requirement enforced.
+* Health endpoint implemented.
+* Readiness endpoint implemented.
+* Prediction endpoint implemented.
+* Structured error handling implemented.
+* Logging implemented.
+* Unit tests implemented.
 
 ## Service
-
-The service is located at:
 
 ```text
 apps/model_service/
 ```
 
-The main inference endpoint is:
+Primary inference endpoint:
 
 ```text
 POST /predict
 ```
 
+Health and readiness endpoints:
+
+```text
+GET /health
+GET /ready
+```
+
 ## Prediction Contract
 
-The inference service requires the historical context necessary to reproduce the feature construction.
+A learned-model prediction requires the historical context needed to construct the same feature representation used during training.
 
-The prediction workflow uses:
+The request contains:
 
 ```text
 168 hours of historical observations
@@ -248,37 +283,20 @@ weather context
         +
 target timestamp
         ↓
-Feature construction
+Feature Construction
         ↓
-Inference
+Model Inference
+        ↓
+Prediction
 ```
 
-## Validation
+The service also supports a persistence baseline serving mode.
 
-Phase 2 established a tested ML service boundary through:
+When the system is operating in baseline mode, the next-hour prediction is the most recently observed energy value supplied in the request history.
 
-* unit tests
-* request validation tests
-* model-loading tests
-* inference tests
-* API prediction verification
-* Ruff validation
+## Outcome
 
-## Phase 2 Outcome
-
-The project progressed from:
-
-```text
-ML experiment
-```
-
-to:
-
-```text
-Standalone ML inference service
-```
-
-This created the service boundary required by the application layer.
+Phase 2 transformed the project from an ML experiment into a standalone ML inference service with an explicit API boundary.
 
 ---
 
@@ -290,9 +308,7 @@ This created the service boundary required by the application layer.
 
 ## Objective
 
-Build a functional web application around the existing ML inference service.
-
-The objective was to create a real application workflow rather than exposing the ML service directly to users.
+Build a functional web application around the ML inference service so that the forecasting system operates as an application rather than exposing the ML service directly to users.
 
 ## Architecture
 
@@ -303,68 +319,59 @@ Node.js / Express
       ↓
 FastAPI ML Service
       ↓
-ML Model / Baseline
+ML Model / Persistence Baseline
 ```
 
-## Frontend
+## Frontend Stack
 
-The frontend was implemented using:
+The frontend uses:
 
-* Next.js
-* React
-* TypeScript
-* Tailwind CSS
-* Recharts
+* Next.js.
+* React.
+* TypeScript.
+* Tailwind CSS.
+* Recharts.
 
-The frontend provides:
+## Application Capabilities
 
-* application overview
-* building listing
-* building detail pages
-* building metadata
-* historical consumption visualization
-* forecast display
-* anomaly analysis
-* consumption analysis
-* forecast views
-* loading states
-* empty states
-* error states
-* responsive layouts
+The application provides:
+
+* Overview.
+* Building listing.
+* Building detail pages.
+* Building metadata.
+* Historical consumption analysis.
+* Forecast views.
+* Consumption views.
+* Anomaly analysis.
+* Model Lab.
+* Monitoring.
+* Loading states.
+* Empty states.
+* Error states.
+* Responsive layouts.
 
 ## Application API
 
-A Node.js/Express application API was introduced.
+The Node.js/Express application API separates application concerns from ML inference concerns.
 
-Its responsibilities include:
+Responsibilities include:
 
-* building discovery
-* building metadata retrieval
-* historical consumption retrieval
-* prediction context preparation
-* communication with the ML service
-* anomaly analysis
-* model-lifecycle data access
-* application-level error handling
+* Building discovery.
+* Building metadata retrieval.
+* Historical consumption retrieval.
+* Prediction-context preparation.
+* Communication with the ML service.
+* Anomaly analysis.
+* Model-lifecycle data access.
+* Application-level error handling.
 
-The API separates application concerns from ML inference concerns.
-
-## Historical Consumption
-
-The application reads the canonical Phase 1 feature dataset and exposes building-level historical consumption through the application API.
-
-The frontend renders the resulting observations using analytical chart components.
-
-## Forecast Integration
-
-The application connects the frontend to the ML inference service.
-
-The complete flow is:
+## Forecast Flow
 
 ```text
 Building Detail Page
       ↓
-Next.js API Client
+Next.js Client
       ↓
 Express Forecast Route
       ↓
@@ -372,7 +379,7 @@ Prediction Context
       ↓
 FastAPI /predict
       ↓
-ML Inference
+ML Inference / Baseline
       ↓
 Forecast Response
       ↓
@@ -383,69 +390,32 @@ Next.js Forecast UI
 
 ## Building-Level Workflow
 
-The building detail page combines:
+The building detail experience combines:
 
 ```text
 Consumption Analysis
         +
-Next-hour Forecast
+Next-Hour Forecast
         +
 Building Profile
 ```
 
-The consumption and forecast views form the primary analytical workflow.
-
-## Additional Application Views
-
-The application also provides dedicated views for:
-
-* Buildings
-* Consumption
-* Forecasts
-* Anomalies
-* Model Lab
-* Monitoring
-
-## Validation
-
-Phase 3 established:
-
-* Python test coverage
-* Node API type checking
-* Node API production build
-* Next.js linting
-* Next.js production build
-* end-to-end prediction verification
-
-## Scope Boundary
-
-Phase 3 intentionally did not introduce:
-
-* Docker
-* MLflow
-* experiment tracking
-* model registry
-* model promotion
-* drift monitoring
-* automated retraining
-* CI/CD
-* cloud deployment
-
-These capabilities were reserved for later phases.
-
-## Phase 3 Outcome
-
-The project gained a functional application platform:
+## Final Application Routes
 
 ```text
-Web Application
-      ↓
-Application API
-      ↓
-ML Inference Service
-      ↓
-Machine Learning
+/
+/anomalies
+/buildings
+/buildings/[buildingId]
+/consumption
+/forecasts
+/model-lab
+/monitoring
 ```
+
+## Outcome
+
+Phase 3 established the integrated application platform connecting the frontend, application API, ML inference service, and forecasting system.
 
 ---
 
@@ -457,95 +427,81 @@ Machine Learning
 
 ## Objective
 
-Introduce reproducible local infrastructure and ML lifecycle management around the existing Building & Energy Intelligence forecasting system.
+Introduce reproducible local infrastructure, experiment tracking, model registration, model signatures, controlled promotion, and safe baseline serving.
 
-The phase moved the project from:
+## Containerized Architecture
 
-```text
-A trained model artifact
-```
-
-to:
+The project was containerized into four local services:
 
 ```text
-A managed and evaluation-driven model lifecycle
+Web
+  ↓
+Application API
+  ↓
+Model Service
+  ↓
+MLflow
 ```
 
-## Main Work
-
-### Containerization
-
-The application was containerized into four local services:
-
-* Next.js / React web application
-* Node.js / Express application API
-* FastAPI ML inference service
-* MLflow tracking and model registry server
-
-Docker Compose provides the local service network and persistent MLflow storage.
-
-The services run locally on:
+Services:
 
 ```text
 Web              : 3000
 Application API  : 4000
-ML Service       : 8000
+Model Service    : 8000
 MLflow           : 5000
 ```
 
-### Experiment Tracking
+Docker Compose provides the local service network and persistent MLflow storage.
 
-MLflow was introduced as the experiment tracking layer.
+## Experiment Tracking
 
-Training runs record information including:
+MLflow is used for experiment tracking.
 
-* experiment configuration
-* model parameters
-* validation metrics
-* test metrics
-* dataset/reference information
-* configuration
-* Git commit information
-* model artifacts
-* model signatures
-* model-family metadata
-* validation status
-
-The primary MLflow experiment is:
+The primary Phase 1 experiment is:
 
 ```text
 building-energy-phase1
 ```
 
-### Model Registry
+Training runs record relevant experiment information including:
 
-The registered MLflow model is:
+* Model parameters.
+* Validation metrics.
+* Test metrics.
+* Dataset/reference information.
+* Configuration.
+* Git information where available.
+* Model artifacts.
+* Model signatures.
+* Model-family metadata.
+* Validation status.
+
+## Model Registry
+
+The registered model is:
 
 ```text
 building-energy-forecast
 ```
 
-The current registry contains:
+The historical Phase 1 registry versions are:
 
-| Version | Model                | Lifecycle state |
-| ------- | -------------------- | --------------- |
-| v1      | Ridge                | Evaluated       |
-| v2      | Random Forest        | Rejected        |
-| v3      | HistGradientBoosting | Evaluated       |
+```text
+v1 — Ridge
+v2 — Random Forest
+v3 — HistGradientBoosting
+```
 
-All registered versions are in `READY` state.
+All three registered versions are READY.
 
-Version v2 contains explicit rejection metadata documenting that it failed the baseline guard.
+Version v2 contains explicit rejection metadata documenting its failure against the persistence baseline guard.
 
-No learned model currently has the `@production` alias.
+## Promotion Policy
 
-This is intentional.
+The system does not promote a learned model merely because it is the strongest learned model.
 
-### Evaluation-Driven Promotion
-
-The promotion workflow does not automatically promote the best learned model.
-
-The process is:
+The lifecycle is:
 
 ```text
 Training
@@ -554,38 +510,28 @@ MLflow Experiment
    ↓
 Evaluation
    ↓
-Select Best Learned Candidate
+Learned Model Comparison
    ↓
-Compare Against Persistence Baseline
+Persistence Baseline Comparison
    ↓
 Baseline Guard
    ↓
-┌───────────────────────┐
-│                       │
-▼                       ▼
-Pass                    Fail
-│                       │
-▼                       ▼
-@production             Reject Candidate
+Promotion Decision
 ```
 
-The current learned-model selection metric is:
+The learned-model selection criterion is:
 
 ```text
 validation_macro_building_nmae
 ```
 
-The candidate must also satisfy the baseline guard.
+The baseline guard compares the learned candidate against the persistence benchmark.
 
-This prevents a learned model from being promoted simply because it performs better than other learned models.
+A learned model therefore requires evidence of value against the simple operational baseline before becoming learned production.
 
-### Current Promotion Result
+## Production State
 
-The current evaluated registry state does not contain a learned production model.
-
-The persistence baseline remains the operational serving strategy because no learned candidate passed the baseline guard.
-
-Conceptually:
+The final Phase 4 state was:
 
 ```text
 Learned production model:
@@ -595,20 +541,22 @@ Operational serving strategy:
 Persistence baseline
 ```
 
-The system does not artificially assign a production alias merely to populate the registry.
+No learned model was artificially assigned the `@production` alias.
 
-### Baseline-Safe Serving
+This is intentional and remains part of the final system architecture.
 
-The model service supports two serving modes:
+## Baseline-Safe Serving
+
+The model service supports:
 
 ```text
 Learned mode
 Baseline mode
 ```
 
-When no valid learned production model exists, the service serves the persistence baseline.
+When a valid learned production alias does not exist, the service falls back to persistence.
 
-The current runtime state is:
+The final runtime baseline identity is:
 
 ```text
 model_name    = persistence
@@ -616,92 +564,45 @@ model_version = baseline
 serving_mode  = baseline
 ```
 
-Persistence predicts the next-hour energy value using the most recent observed energy value from the supplied historical observations.
+## Model Signatures
 
-This allows the application to remain operational while preserving the evaluation and promotion policy.
+The registered model versions were verified against the Docker-hosted MLflow server.
 
-### MLflow Model Signature Verification
+The signatures describe the expected forecasting feature contract, including:
 
-Registered model versions were verified against the Docker-hosted MLflow server.
-
-The registered models expose the expected forecasting feature contract, including:
-
-* building identifiers and metadata
-* site and primary-use information
-* building area information
-* weather variables
-* calendar features
-* historical energy lag features
-* rolling energy statistics
-* heating degree-hour features
-* cooling degree-hour features
+* Building identifiers.
+* Site information.
+* Primary-use information.
+* Building-area information.
+* Weather variables.
+* Calendar features.
+* Historical energy features.
+* Lag features.
+* Rolling features.
+* Heating degree-hour features.
+* Cooling degree-hour features.
 
 The model output is a numeric prediction vector.
 
-### Model Service Integration
+## Model Lab
 
-The model service obtains model lifecycle information through MLflow when operating in MLflow mode.
+The Model Lab application surface exposes model-lifecycle information including:
 
-The application architecture therefore becomes:
+* Registered model versions.
+* Model runs.
+* Model parameters.
+* Model metrics.
+* Lifecycle metadata.
+* Evaluation metadata.
+* Baseline information.
+* Registry state.
+* Serving state.
 
-```text
-Next.js
-   ↓
-Node / Express
-   ↓
-FastAPI ML Service
-   ↓
-MLflow Model Registry
-   ↓
-Registered Model
-```
+Model Lab is an observability and lifecycle surface. It does not allow arbitrary user-selected production model deployment.
 
-If no learned production alias is available, the service falls back to the persistence baseline.
+## Outcome
 
-### Runtime Verification
-
-The Docker Compose stack was successfully verified with all four services running:
-
-```text
-Web              : 3000
-API              : 4000
-Model Service    : 8000
-MLflow           : 5000
-```
-
-The primary model-service endpoints are:
-
-```text
-GET /health
-GET /ready
-POST /predict
-```
-
-The readiness state exposes the active serving strategy.
-
-A real prediction request was verified through the containerized inference path.
-
-### Model Lab
-
-A Model Lab interface was added as an application-level observability surface for the MLflow lifecycle.
-
-It exposes:
-
-* registered model versions
-* model runs
-* lifecycle metadata
-* evaluation metadata
-* baseline information
-* serving state
-* model metrics
-* model parameters
-* registry state
-
-The Model Lab is a supporting observability surface for the model lifecycle.
-
-## Phase 4 Outcome
-
-Phase 4 established the project's local MLOps lifecycle:
+Phase 4 established:
 
 ```text
 Data
@@ -712,47 +613,16 @@ Training
   ↓
 MLflow Experiment
   ↓
-Evaluation
-  ↓
 Model Registry
   ↓
-Baseline Promotion Guard
+Evaluation
   ↓
-Controlled Lifecycle Decision
+Baseline Guard
   ↓
-Production / Baseline Serving
+Controlled Serving
 ```
 
-The system now has:
-
-* reproducible containerized execution
-* MLflow experiment tracking
-* registered model versions
-* model signatures
-* evaluation metadata
-* controlled promotion
-* baseline-aware rejection
-* safe baseline serving
-* persistent local MLflow storage
-* verified ML inference
-
-## Deferred From Phase 4
-
-The following capabilities were intentionally deferred:
-
-* automated data-quality monitoring
-* data drift detection
-* prediction monitoring
-* automated performance monitoring
-* degradation detection
-* automated retraining
-* retraining eligibility
-* cloud deployment
-* Kubernetes
-* large-scale distributed infrastructure
-* large LLM or agent infrastructure
-
-These capabilities are handled by later phases only where they provide a concrete engineering benefit.
+The project gained reproducible containerized execution, MLflow tracking, registered versions, model signatures, controlled promotion logic, baseline-aware rejection, and safe fallback serving.
 
 ---
 
@@ -764,29 +634,11 @@ These capabilities are handled by later phases only where they provide a concret
 
 ## Objective
 
-Make the forecasting platform testable, continuously verifiable, observable, and capable of detecting data, model, and service degradation.
+Make the forecasting platform testable, continuously verifiable, observable, and capable of detecting data, service, drift, and performance degradation.
 
-Phase 5 extends the system from:
+Phase 5 intentionally established the evidence layer required for controlled retraining rather than performing automatic retraining.
 
-```text
-A working ML application
-```
-
-to:
-
-```text
-A monitored and automatically verified ML system
-```
-
-The phase does not introduce automatic retraining.
-
-Instead, it establishes the evidence and lifecycle state required before controlled retraining can occur in Phase 6.
-
----
-
-# Phase 5 Architecture
-
-The resulting operational architecture is:
+## Phase 5 Architecture
 
 ```text
 Browser
@@ -802,14 +654,14 @@ Model / Persistence Baseline
 Prediction
    ↓
 ┌─────────────────────────────────────────┐
-│             Observability               │
+│              Observability              │
 │                                         │
 │ Data Quality                            │
 │ Feature Drift                           │
 │ Prediction Monitoring                   │
 │ Model Performance                       │
 │ Service Health                          │
-│ Degradation Detection                   │
+│ Sustained Degradation                   │
 └─────────────────────────────────────────┘
    ↓
 Monitoring API
@@ -817,10 +669,10 @@ Monitoring API
 Monitoring Dashboard
 ```
 
-Testing and CI operate alongside this runtime path:
+Testing and CI operate alongside the runtime system:
 
 ```text
-Source Changes
+Source Change
      ↓
 Automated Tests
      ↓
@@ -841,22 +693,24 @@ CI Verification
 
 **Complete**
 
-## Objective
-
-Establish a reliable automated testing foundation for the ML and application layers.
-
 ## Main Work
 
-Tests were organized around the major system boundaries:
+Automated tests were established around:
 
-* data validation
-* feature engineering
-* model behaviour
-* inference
-* API contracts
-* monitoring logic
+* Data validation.
+* Feature engineering.
+* Lag correctness.
+* Rolling-window correctness.
+* Future-leakage prevention.
+* Feature schemas.
+* Model behaviour.
+* Prediction behaviour.
+* Inference contracts.
+* Baseline serving.
+* API validation.
+* Monitoring logic.
 
-The test strategy covers:
+The tests cover:
 
 ```text
 Data
@@ -870,40 +724,21 @@ Inference API
 Monitoring
 ```
 
-## ML Testing
-
-Coverage includes:
-
-* feature construction
-* lag correctness
-* rolling-window correctness
-* absence of future leakage
-* feature schema
-* insufficient historical context
-* prediction existence
-* finite predictions
-* nonnegative predictions
-* deterministic behaviour
-* model identity
-* baseline serving behaviour
-
-## API Testing
-
 The inference service is tested for:
 
-* valid prediction requests
-* invalid requests
-* insufficient history
-* duplicate timestamps
-* invalid energy values
-* invalid request fields
-* health endpoint
-* readiness endpoint
-* prediction endpoint
+* Valid prediction requests.
+* Invalid requests.
+* Insufficient history.
+* Duplicate timestamps.
+* Invalid energy values.
+* Invalid request fields.
+* Health.
+* Readiness.
+* Prediction behaviour.
 
 ## Outcome
 
-The project gained a repeatable automated verification layer rather than relying only on manual prediction testing.
+The project gained a repeatable automated verification layer.
 
 ---
 
@@ -913,21 +748,17 @@ The project gained a repeatable automated verification layer rather than relying
 
 **Complete**
 
-## Objective
-
-Verify that the major services work together across their real application boundaries.
-
 ## Main Work
 
-Integration coverage was added for:
+Integration coverage was established for:
 
-* model-service behaviour
-* prediction path
-* monitoring state
-* Model Lab
-* application API
-* anomaly functionality
-* application-level data access
+* Model-service behaviour.
+* Prediction paths.
+* Monitoring state.
+* Model Lab.
+* Application API.
+* Anomaly functionality.
+* Application-level data access.
 
 The major integration path is:
 
@@ -947,23 +778,19 @@ Monitoring
 
 ## Outcome
 
-The system was verified as an integrated application rather than a collection of independently tested components.
+The system was verified as an integrated application rather than only as isolated components.
 
 ---
 
-# Phase 5 Batch 3 — CI
+# Phase 5 Batch 3 — Continuous Integration
 
 ## Status
 
 **Complete**
 
-## Objective
-
-Automatically verify core project correctness through CI.
-
 ## CI Checks
 
-The project CI covers the core verification layers:
+The core CI verification layers include:
 
 ```text
 Python
@@ -980,37 +807,29 @@ Web
 └── build
 ```
 
-These checks are intended to block changes that introduce:
+These checks are intended to detect:
 
-* failing tests
-* Python lint violations
-* API lint violations
-* type errors
-* application build failures
-* frontend lint violations
-* frontend build failures
+* Test failures.
+* Python lint violations.
+* API lint violations.
+* Type errors.
+* Application build failures.
+* Frontend lint violations.
+* Frontend build failures.
 
 ## CI Philosophy
 
-Not every expensive operation needs to run for every source change.
+Fast blocking checks are separated from expensive lifecycle or infrastructure operations.
 
-The project intentionally separates:
+The project does not require:
 
-```text
-Fast blocking checks
-```
-
-from:
-
-```text
-Long-running evaluation / infrastructure checks
-```
-
-Full retraining, large historical evaluation, and full Docker rebuilds are not required for every commit.
+* Full retraining on every commit.
+* Large historical evaluation on every commit.
+* Full Docker rebuilds on every source change.
 
 ## Outcome
 
-The project gained an automated engineering quality gate.
+Phase 5 established an automated engineering-quality gate.
 
 ---
 
@@ -1020,23 +839,19 @@ The project gained an automated engineering quality gate.
 
 **Complete**
 
-## Objective
-
-Create the runtime monitoring state and expose the main health and prediction signals.
-
 ## Prediction Monitoring
 
-Prediction records capture information such as:
+Prediction events record information including:
 
-* building ID
-* timestamp
-* prediction
-* persistence baseline
-* model name
-* model version
-* serving mode
+* Building ID.
+* Timestamp.
+* Prediction.
+* Persistence baseline.
+* Model name.
+* Model version.
+* Serving mode.
 
-The monitoring state is bounded to:
+Runtime monitoring state is bounded to:
 
 ```text
 1000 observations
@@ -1066,37 +881,25 @@ It does not mean:
 3 buildings
 ```
 
-and does not mean:
+and it does not mean:
 
 ```text
 3 historical dataset rows
 ```
 
-The project dataset contains:
-
-```text
-12 development buildings
-```
-
-while each prediction request uses:
-
-```text
-168 historical hourly observations
-```
-
-These represent separate concepts.
+The historical development dataset contains 12 buildings, while an individual prediction request uses 168 historical hourly observations. These are separate concepts.
 
 ## Service Health
 
 The monitoring layer observes:
 
-* availability
-* request count
-* error count
-* latency
-* health state
-* readiness state
-* dependency status
+* Availability.
+* Request count.
+* Error count.
+* Latency.
+* Health state.
+* Readiness state.
+* Dependency status.
 
 ## Outcome
 
@@ -1118,8 +921,6 @@ Detect meaningful changes in incoming feature distributions relative to a refere
 
 The current implementation uses Population Stability Index (PSI).
 
-The conceptual flow is:
-
 ```text
 Reference Distribution
         +
@@ -1130,9 +931,7 @@ PSI
 Drift Status
 ```
 
-## Thresholds
-
-The current thresholds are:
+## Current Thresholds
 
 ```text
 PSI < 0.10
@@ -1145,19 +944,19 @@ PSI ≥ 0.25
     → critical
 ```
 
-The minimum current sample count is:
+Minimum current sample count:
 
 ```text
-30
+30 observations
 ```
 
-If fewer than 30 current observations are available, the result is:
+If fewer than 30 observations are available:
 
 ```text
 insufficient_data
 ```
 
-rather than a drift decision.
+is returned instead of manufacturing a drift decision.
 
 ## Reference Profile
 
@@ -1167,48 +966,34 @@ The reference profile is:
 configs/monitoring_reference.json
 ```
 
-The monitoring system distinguishes between:
+The system distinguishes:
 
 ```text
 No measurable drift
 ```
 
-and:
+from:
 
 ```text
 Reference unavailable
 ```
 
-This prevents missing reference data from being incorrectly interpreted as a healthy distribution.
-
 ## Monitored Feature Families
 
-The drift layer can monitor:
+The drift system can monitor:
 
-* building characteristics
-* calendar features
-* historical energy features
-* rolling energy features
-* weather variables
-* temperature-derived features
+* Building characteristics.
+* Calendar features.
+* Historical energy features.
+* Rolling energy features.
+* Weather variables.
+* Temperature-derived features.
 
 ## Optional Weather Handling
 
 Optional weather fields are handled safely.
 
-Missing optional weather values do not cause monitoring instrumentation to crash an otherwise valid prediction request.
-
-This preserves the separation between:
-
-```text
-Prediction correctness
-```
-
-and:
-
-```text
-Optional monitoring signals
-```
+Missing optional weather values do not cause monitoring instrumentation to break an otherwise valid prediction request.
 
 ## Outcome
 
@@ -1222,39 +1007,35 @@ The system gained explicit feature-distribution drift detection with sample-size
 
 **Complete**
 
-## Objective
-
-Expose runtime ML and service health information through the application.
-
 ## Monitoring Dashboard
 
-The Monitoring page provides visibility into:
+The Monitoring page exposes:
 
-* serving mode
-* current model identity
-* prediction observations
-* data-quality state
-* drift state
-* performance state
-* service health
-* recent monitoring signals
-* performance trends
-* building-level information where available
+* Serving mode.
+* Current model identity.
+* Prediction observations.
+* Data-quality state.
+* Drift state.
+* Performance state.
+* Service health.
+* Recent monitoring signals.
+* Performance trends.
+* Building-level information where available.
 
 ## Design Principle
 
-The Monitoring page is an observability surface.
+Monitoring is an observability surface.
 
 It does not:
 
-* automatically retrain models
-* automatically promote models
-* replace the MLflow lifecycle
-* override the baseline promotion guard
+* Automatically retrain models.
+* Automatically promote models.
+* Replace MLflow.
+* Override the promotion guard.
 
 ## Outcome
 
-Monitoring information became accessible from the main application rather than requiring direct interaction with service endpoints.
+Runtime ML and service health information became accessible through the application.
 
 ---
 
@@ -1268,11 +1049,9 @@ Monitoring information became accessible from the main application rather than r
 
 Track actual forecasting performance over time and detect sustained degradation.
 
-## Prediction Records
+## Prediction and Outcome Separation
 
-The monitoring system records predictions independently from outcome observations.
-
-A prediction can be recorded immediately:
+A prediction is recorded when a prediction event occurs:
 
 ```text
 Prediction
@@ -1280,7 +1059,7 @@ Prediction
 Prediction Record
 ```
 
-A performance observation requires the corresponding actual value:
+A performance observation requires the corresponding actual outcome:
 
 ```text
 Prediction
@@ -1290,20 +1069,20 @@ Actual Outcome
 Performance Observation
 ```
 
-This distinction prevents the system from pretending to know forecasting accuracy before the actual outcome exists.
+This prevents the system from evaluating a prediction before the actual value exists.
 
 ## Performance Metrics
 
-The performance monitoring layer calculates:
+The monitoring system calculates:
 
-* MAE
-* RMSE
-* NMAE
-* persistence MAE
-* persistence RMSE
-* persistence NMAE
-* building-level metrics
-* comparison with persistence
+* MAE.
+* RMSE.
+* NMAE.
+* Persistence MAE.
+* Persistence RMSE.
+* Persistence NMAE.
+* Building-level metrics.
+* Comparison against persistence.
 
 ## Building-Level Monitoring
 
@@ -1340,17 +1119,15 @@ Therefore:
 30 × 3 = 90 outcome observations
 ```
 
-are required before the default sustained degradation decision can be evaluated.
+are required before the default sustained-degradation decision can be evaluated.
 
-The detector does not classify a model as degraded merely because one 30-observation window is poor.
+A single poor window does not establish sustained degradation.
 
-The possible state is:
+Until sufficient observations exist, the state may remain:
 
 ```text
 insufficient_data
 ```
-
-until sufficient observations exist.
 
 ## Degradation Threshold
 
@@ -1360,29 +1137,11 @@ The default relative degradation threshold is:
 10%
 ```
 
-The detector evaluates degradation across sustained windows.
-
-Conceptually:
-
-```text
-Recent Outcomes
-      ↓
-30-observation Window
-      ↓
-Performance Comparison
-      ↓
-Window Signal
-      ↓
-Repeat for 3 Windows
-      ↓
-Sustained Degradation Decision
-```
+The detector evaluates degradation across sustained windows rather than treating one isolated poor window as sufficient evidence.
 
 ## Baseline-Aware Performance
 
-The persistence baseline is retained alongside model predictions.
-
-This allows the monitoring system to compare:
+Persistence remains available alongside served-model predictions:
 
 ```text
 Served Model
@@ -1390,11 +1149,11 @@ Served Model
 Persistence Baseline
 ```
 
-using the same actual outcomes.
+Both can be evaluated against the same actual outcomes.
 
 ## Outcome
 
-The project gained a performance-monitoring and sustained-degradation foundation suitable for the next lifecycle stage.
+Phase 5 established performance monitoring and sustained-degradation detection as the evidence layer required for controlled lifecycle action.
 
 ---
 
@@ -1404,48 +1163,26 @@ The project gained a performance-monitoring and sustained-degradation foundation
 
 **Complete**
 
-## Automated Verification
-
-The final Python test suite passed:
+The final verification performed before Phase 6 completion included:
 
 ```text
-47 passed
-2 warnings
-```
+pytest -q
+64 passed, 2 warnings
 
-Ruff passed:
-
-```text
+ruff check .
 All checks passed!
+
+API typecheck
+Passed
+
+Web lint
+Passed
+
+Web production build
+Passed
 ```
 
-The API typecheck passed:
-
-```text
-tsc --noEmit
-```
-
-The API production build passed:
-
-```text
-tsc
-```
-
-The API lint check was included in the final CI verification.
-
-The web lint check passed:
-
-```text
-eslint
-```
-
-The web production build passed:
-
-```text
-next build
-```
-
-The resulting application routes include:
+The final application route set is:
 
 ```text
 /
@@ -1458,8 +1195,6 @@ The resulting application routes include:
 /monitoring
 ```
 
-## Runtime Verification
-
 The containerized runtime was verified with:
 
 ```text
@@ -1469,28 +1204,21 @@ Model Service
 MLflow
 ```
 
-The model-service runtime was rebuilt after the monitoring/inference instrumentation fixes so that the running container reflected the current application code.
-
-The prediction path and Monitoring page were verified in the containerized application.
+The prediction path and monitoring functionality were verified in the containerized application.
 
 ## Runtime Stability Fix
 
-During Phase 5 integration verification, an optional weather field could be `None` in a valid prediction request.
+During integration verification, an optional weather field could contain `None`.
 
-Monitoring instrumentation originally attempted to convert the missing value directly to a float, causing:
+Monitoring instrumentation initially attempted to convert the missing value directly to a float, causing a valid prediction request to fail.
 
-```text
-POST /predict
-→ 500
-```
+The monitoring feature extraction was corrected so optional weather fields are only processed when present.
 
-The monitoring feature extraction was corrected so optional weather fields are included only when present.
+The result is that observability instrumentation no longer breaks valid inference requests.
 
-The result is that observability instrumentation no longer breaks valid prediction requests.
+## Sustained-Degradation Contract Fix
 
-## Testing of Sustained Degradation
-
-An incorrect intermediate implementation allowed a single 30-observation window to produce a degraded decision.
+An intermediate implementation allowed a single 30-observation window to produce a degraded decision.
 
 The contract was corrected to require:
 
@@ -1500,363 +1228,827 @@ The contract was corrected to require:
 3 × 30-observation windows
 ```
 
-The integration tests were updated accordingly.
-
-The final full Python suite passed after this correction.
+The relevant tests were updated and the final test suite passed.
 
 ---
 
-# Phase 5 Engineering Decisions
-
-## 1. Monitoring does not control production deployment
-
-Monitoring produces evidence.
-
-It does not directly promote or replace models.
-
-## 2. Drift does not automatically trigger retraining
-
-Feature drift is a signal.
-
-Drift alone is insufficient evidence for retraining.
-
-## 3. Performance requires actual outcomes
-
-A prediction cannot be scored until its corresponding actual observation becomes available.
-
-## 4. Sustained degradation is required
-
-A single bad window should not trigger a lifecycle transition.
-
-The current default requires three consecutive performance windows with sufficient observations.
-
-## 5. Baseline comparison remains important
-
-The persistence baseline remains part of performance monitoring so that model performance can be interpreted against a simple operational reference.
-
-## 6. Insufficient data is a valid state
-
-The monitoring system explicitly represents:
-
-```text
-insufficient_data
-```
-
-instead of manufacturing conclusions from too few observations.
-
-## 7. Observability must not break inference
-
-Monitoring instrumentation is secondary to the prediction contract.
-
-Optional monitoring fields must therefore be handled safely.
-
-## 8. Monitoring state is bounded
-
-The local monitoring state is capped at 1000 observations.
-
-This is appropriate for the current laptop-first architecture.
-
-A persistent telemetry store can be introduced later if the deployment architecture requires it.
-
----
-
-# Phase 5 Scope Boundary
-
-Phase 5 intentionally does not implement:
-
-* automatic retraining
-* automatic model promotion
-* automatic rollback
-* cloud deployment
-* Kubernetes
-* production-scale telemetry infrastructure
-* distributed monitoring
-* large-scale streaming infrastructure
-
-Phase 5 instead establishes the evidence layer required for controlled lifecycle decisions.
-
----
-
-# Phase 5 Outcome
-
-Phase 5 transformed the system from:
-
-```text
-A working ML application
-```
-
-into:
-
-```text
-A tested, CI-verified and observable ML application
-```
-
-The resulting lifecycle is:
-
-```text
-Data
-  ↓
-Feature Engineering
-  ↓
-Training
-  ↓
-Evaluation
-  ↓
-Model Registry
-  ↓
-Promotion Guard
-  ↓
-Serving
-  ↓
-Prediction Monitoring
-  ↓
-Data Quality
-  ↓
-Feature Drift
-  ↓
-Performance Monitoring
-  ↓
-Sustained Degradation Detection
-```
-
-The current serving state remains:
-
-```text
-Serving mode:
-baseline
-
-Strategy:
-Persistence
-
-Learned production alias:
-none
-```
-
-The strongest evaluated learned candidate remains Random Forest under the current validation macro-building NMAE selection criterion, but it remains rejected because it did not pass the baseline guard.
-
-Phase 5 does not change that lifecycle decision.
-
----
-
-# Phase 6 — Controlled Retraining
+# Phase 6 — Controlled Retraining & Final Lifecycle
 
 ## Status
 
-**Planned**
+**Complete**
 
 ## Objective
 
-Introduce a controlled process for updating models when sufficient new data and evidence justify retraining.
+Complete the ML lifecycle by introducing simulated production-data arrival, controlled distribution shift, explicit retraining eligibility, candidate retraining, experiment tracking, candidate evaluation, promotion/rejection controls, and rollback capability.
 
-Phase 6 builds directly on the monitoring and degradation state established in Phase 5.
+Phase 6 is the final implementation phase.
 
-## Retraining Eligibility
+There is no Phase 7.
 
-The intended eligibility contract is:
+## Final Lifecycle
+
+The completed lifecycle is:
+
+```text
+NEW DATA
+   ↓
+VALIDATION
+   ↓
+MONITORING
+   ↓
+POSSIBLE DEGRADATION
+   ↓
+RETRAINING ELIGIBILITY
+   ↓
+CANDIDATE TRAINING
+   ↓
+EXPERIMENT TRACKING
+   ↓
+CANDIDATE EVALUATION
+   ↓
+COMPARE WITH PRODUCTION
+   ↓
+COMPARE WITH PERSISTENCE
+   ↓
+PROMOTION DECISION
+   ├── REJECT
+   └── PROMOTE
+          ↓
+     NEW PRODUCTION MODEL
+          ↓
+       INFERENCE
+          ↓
+      MONITORING
+```
+
+The implemented lifecycle is controlled rather than automatic.
+
+---
+
+# Phase 6 Batch 1 — Retraining Eligibility
+
+## Status
+
+**Complete**
+
+## Objective
+
+Convert Phase 5 monitoring evidence into an explicit retraining-eligibility decision.
+
+Retraining eligibility does not itself perform training.
+
+The eligibility contract requires evidence from multiple signals:
 
 ```text
 Sufficient Observations
         +
 Sustained Performance Degradation
         +
-Supporting Drift Evidence Where Relevant
-        +
 Baseline Comparison
         +
 Data Quality Not Critical
         +
 Service State Acceptable
+        +
+Supporting Drift Evidence
         ↓
-Retraining Eligible
+Retraining Eligibility Decision
 ```
 
-The eligibility state should contain enough information to explain the decision.
+Drift alone does not trigger retraining.
 
-Relevant information includes:
+## Eligibility Evidence
 
-* model identity
-* serving mode
-* performance state
-* drift state
-* data-quality state
-* service state
-* sample count
-* monitoring window
-* current metrics
-* reference metrics
-* baseline metrics
-* degradation status
-* reasons for eligibility
+The eligibility decision records:
 
-## Planned Workflow
+* Current model identity.
+* Model version.
+* Serving mode.
+* Sample count.
+* Required sample count.
+* Sustained degradation state.
+* Current model NMAE.
+* Persistence NMAE.
+* Baseline comparison availability.
+* Whether the learned model beats persistence.
+* Drift status.
+* Data-quality status.
+* Service status.
+* Positive reasons.
+* Blocking reasons.
+
+Possible final states include:
 
 ```text
-New Data
-   ↓
-Data Validation
-   ↓
-Data Quality Checks
-   ↓
-Feature Generation
-   ↓
-Training
-   ↓
-Evaluation
-   ↓
-Compare Against Current Serving Strategy
-   ↓
-Baseline Guard
-   ↓
-Candidate Registration
-   ↓
-Promotion Decision
+retraining_eligible
+not_eligible
 ```
 
-Retraining must not automatically replace the existing serving strategy.
+## Outcome
 
-## Planned Controls
-
-* reproducible training configuration
-* dataset tracking
-* experiment tracking
-* candidate model registration
-* evaluation gates
-* baseline comparison
-* promotion rules
-* rollback capability
-* retraining history
-* explicit lifecycle decisions
-
-## Retraining Trigger Principle
-
-Potential signals include:
-
-```text
-New Data Available
-        OR
-Sustained Performance Degradation
-        OR
-Meaningful Data / Feature Distribution Change
-```
-
-These signals should feed an evidence-correlation process rather than directly bypassing evaluation.
-
-## Phase 6 Outcome
-
-The ML system will gain a controlled model-update lifecycle rather than relying on manual replacement of model artifacts.
+The project gained an explicit lifecycle gate between monitoring evidence and candidate retraining.
 
 ---
 
-# Phase 7 — Deployment & Production Delivery
+# Phase 6 Batch 2 — Simulated Production Data
 
 ## Status
 
-**Planned**
+**Complete**
 
 ## Objective
 
-Make the containerized platform reproducibly deployable outside the local development environment.
+Create deterministic local production-like data so that the complete monitoring and retraining lifecycle can be demonstrated without requiring a live telemetry infrastructure.
 
-## Planned Work
+The simulation uses the processed Phase 1 dataset as its source.
 
-* deployment configuration
-* environment-specific configuration
-* production secrets/configuration handling
-* container image management
-* CI/CD pipeline
-* automated quality gates
-* deployment workflow
-* deployment health checks
-* rollback strategy
-* cloud deployment
-
-## CI/CD
-
-The intended deployment pipeline is:
+The production simulation selects:
 
 ```text
-Git Push
-   ↓
-Automated Tests
-   ↓
-Lint / Type Checks
-   ↓
-Application Builds
-   ↓
-Container Image Build
-   ↓
-Deployment Validation
-   ↓
-Deployment
+168 observations × 12 buildings
+=
+2016 observations
 ```
 
-Model-specific deployment remains subject to the evaluation and promotion policy established in Phase 4.
-
-## Production Architecture
-
-The target architecture is:
+Two scenarios are generated:
 
 ```text
-                    ┌──────────────────┐
-                    │    Web Client    │
-                    └────────┬─────────┘
-                             ↓
-                    ┌──────────────────┐
-                    │   Web Frontend   │
-                    └────────┬─────────┘
-                             ↓
-                    ┌──────────────────┐
-                    │ Application API  │
-                    └────────┬─────────┘
-                             ↓
-                    ┌──────────────────┐
-                    │   ML Service     │
-                    └────────┬─────────┘
-                             ↓
-                    ┌──────────────────┐
-                    │  Model Registry  │
-                    └──────────────────┘
+Normal Production
+Shifted Production
 ```
 
-Monitoring and lifecycle infrastructure operate alongside the application services.
+## Normal Scenario
 
-## Phase 7 Outcome
+The normal scenario preserves the underlying target behaviour while applying only small deterministic weather perturbations.
 
-The system becomes reproducibly deployable with automated engineering quality gates and a defined production delivery process.
+Output:
+
+```text
+data/interim/production/normal_production.parquet
+```
+
+## Shifted Scenario
+
+The shifted scenario applies a controlled distribution shift to incoming conditions.
+
+The implemented shift includes:
+
+* Air temperature shift.
+* Dew temperature shift.
+* Wind-speed scaling.
+* Target consumption shift.
+* Deterministic small noise.
+
+Output:
+
+```text
+data/interim/production/shifted_production.parquet
+```
+
+The simulator uses a deterministic seed so that the demonstration is reproducible.
+
+## Outcome
+
+The project gained reproducible production-like data for demonstrating drift, performance changes, and candidate retraining without pretending that the historical dataset is a live telemetry system.
 
 ---
 
-# Final Project Progression
+# Phase 6 Batch 3 — Candidate Retraining
 
-The completed and planned project progression is:
+## Status
+
+**Complete**
+
+## Objective
+
+Train new models from the simulated production data while keeping them isolated from the current serving state.
+
+The candidate training process uses:
 
 ```text
-PHASE 0
-Project Foundation
-        ↓
-PHASE 1
-Data + Features + ML Baseline
-        ↓
-PHASE 2
-ML Inference Service
-        ↓
-PHASE 3
-Application Platform
-        ↓
-PHASE 4
-MLOps + Model Lifecycle
-        ↓
-PHASE 5
-Testing + CI + Observability
-        ↓
-PHASE 6
-Controlled Retraining
-        ↓
-PHASE 7
-Deployment + Production Delivery
+data/interim/production/
 ```
 
-The current project status is:
+with the normal or shifted scenario selected explicitly.
+
+## Candidate Experiment
+
+A separate MLflow experiment is used:
+
+```text
+building-energy-retraining
+```
+
+The registered model remains:
+
+```text
+building-energy-forecast
+```
+
+The candidate models generated from the shifted scenario were:
+
+```text
+v4 — Ridge
+v5 — Random Forest
+v6 — HistGradientBoosting
+```
+
+## Candidate Lifecycle
+
+Candidate training records:
+
+* Training run.
+* Dataset information.
+* Model family.
+* Model artifact.
+* Model signature.
+* Candidate metadata.
+* Validation metadata.
+* Source simulation mode.
+* Lifecycle stage.
+
+Candidate models do not receive the production alias during training.
+
+## Candidate Isolation
+
+The fundamental rule is:
+
+```text
+Candidate
+   ≠
+Production
+```
+
+A newly trained candidate cannot replace the serving model merely because training completed successfully.
+
+## Outcome
+
+The project gained reproducible candidate-model generation without directly affecting production serving.
+
+---
+
+# Phase 6 Batch 4 — Candidate Evaluation & Promotion/Rejection
+
+## Status
+
+**Complete**
+
+## Objective
+
+Evaluate retrained candidates against the current serving strategy and the persistence baseline before making a lifecycle decision.
+
+The evaluation was performed against the shifted simulated production scenario.
+
+## Candidate Results
+
+The resulting candidate NMAE values were:
+
+```text
+v4 — Ridge
+candidate NMAE = 13.008031
+
+v5 — Random Forest
+candidate NMAE = 9.466449
+
+v6 — HistGradientBoosting
+candidate NMAE = 2.904410
+```
+
+The persistence baseline on the same evaluation data was:
+
+```text
+persistence NMAE = 0.219467
+```
+
+Therefore, none of the three candidates beat persistence on the candidate evaluation.
+
+## Lifecycle Decision
+
+The final decision was:
+
+```text
+v4 — REJECTED
+v5 — REJECTED
+v6 — REJECTED
+```
+
+The rejection reason was that the candidate did not beat the persistence baseline.
+
+No learned production model was created.
+
+## Important Lifecycle Principle
+
+The system does not force promotion simply because a candidate was retrained.
+
+The actual lifecycle outcome is allowed to be:
+
+```text
+Candidate
+   ↓
+Evaluation
+   ↓
+Reject
+   ↓
+Keep Current Serving Strategy
+```
+
+This is a valid and intentional final outcome.
+
+## Final Production State
+
+After candidate evaluation:
+
+```text
+Learned production model:
+None
+
+Production alias:
+None
+
+Operational serving strategy:
+Persistence baseline
+```
+
+The project therefore demonstrates both candidate creation and controlled rejection.
+
+---
+
+# Phase 6 Batch 5 — Rollback Capability
+
+## Status
+
+**Complete**
+
+## Objective
+
+Provide an explicit operational mechanism for restoring a known registered model version if a learned production model exists and requires rollback.
+
+The rollback mechanism operates through the MLflow production alias.
+
+Conceptually:
+
+```text
+Current Production
+       ↓
+Operational Problem
+       ↓
+Select Known Version
+       ↓
+Validate Target
+       ↓
+Move @production
+       ↓
+Record Rollback Metadata
+```
+
+Rollback metadata includes:
+
+* Rollback status.
+* Rollback timestamp.
+* Previous production version.
+* Rollback reason.
+* Restored lifecycle state.
+
+## Safety Behaviour
+
+The rollback mechanism refuses to fabricate a rollback when no learned production model exists.
+
+During final validation, attempting:
+
+```text
+python scripts/rollback_model.py --to-version 1
+```
+
+correctly produced the safety error indicating that no learned production model currently existed.
+
+This is expected because the final lifecycle never promoted a learned candidate.
+
+The rollback mechanism is therefore implemented and safety-validated without artificially creating a production state solely for demonstration.
+
+---
+
+# Phase 6 Batch 6 — Lifecycle API & Application Observability
+
+## Status
+
+**Complete**
+
+## Objective
+
+Expose the completed ML lifecycle through the existing model-service and application observability surfaces.
+
+The model service provides lifecycle and monitoring endpoints including:
+
+```text
+GET /model-lab/summary
+GET /model-lab/versions
+GET /model-lab/runs
+
+GET /monitoring/summary
+GET /monitoring/drift
+GET /monitoring/performance
+GET /monitoring/outcomes
+
+GET /health
+GET /ready
+
+POST /predict
+```
+
+## Model Lab
+
+The final Model Lab exposes:
+
+* Model versions.
+* Model families.
+* Runs.
+* Registry state.
+* Lifecycle state.
+* Evaluation metadata.
+* Promotion metadata.
+* Rejection metadata.
+* Baseline information.
+* Serving state.
+
+The Model Lab makes the lifecycle visible without introducing arbitrary user-controlled production selection.
+
+## Monitoring
+
+The final Monitoring surface exposes:
+
+* Serving mode.
+* Model identity.
+* Runtime health.
+* Prediction monitoring.
+* Data quality.
+* Feature drift.
+* Performance.
+* Degradation state.
+* Diagnostic information.
+
+## Outcome
+
+The application exposes the ML lifecycle and monitoring system as first-class product functionality.
+
+---
+
+# Phase 6 Batch 7 — Final Verification & Publication Readiness
+
+## Status
+
+**Complete**
+
+## Final Automated Verification
+
+The final Python test suite passed:
+
+```text
+64 passed
+2 warnings
+```
+
+Ruff passed:
+
+```text
+All checks passed!
+```
+
+The application API typecheck passed.
+
+The web lint passed.
+
+The web production build passed.
+
+The final application route set is:
+
+```text
+/
+/anomalies
+/buildings
+/buildings/[buildingId]
+/consumption
+/forecasts
+/model-lab
+/monitoring
+```
+
+## Final Project Verification
+
+The final implementation verifies:
+
+```text
+Data pipeline                         ✓
+Feature engineering                  ✓
+ML training                          ✓
+Baseline evaluation                  ✓
+MLflow experiment tracking           ✓
+Model registry                       ✓
+Model signatures                     ✓
+Inference service                    ✓
+Application API                      ✓
+React / Next.js application          ✓
+Docker Compose runtime               ✓
+Automated tests                      ✓
+CI verification                      ✓
+Prediction monitoring                ✓
+Data-quality monitoring              ✓
+Feature drift detection              ✓
+Performance monitoring               ✓
+Sustained degradation detection      ✓
+Retraining eligibility               ✓
+Production-data simulation           ✓
+Controlled distribution shift        ✓
+Candidate retraining                 ✓
+Candidate MLflow tracking             ✓
+Candidate evaluation                 ✓
+Persistence comparison               ✓
+Promotion/rejection decision         ✓
+Rollback mechanism                   ✓
+Lifecycle observability              ✓
+Model Lab                            ✓
+Monitoring dashboard                 ✓
+```
+
+---
+
+# Final Model Lifecycle State
+
+The final MLflow registry contains the original Phase 1 learned models and the Phase 6 retraining candidates.
+
+Historical learned models:
+
+```text
+v1 — Ridge
+v2 — Random Forest
+v3 — HistGradientBoosting
+```
+
+Phase 6 retraining candidates:
+
+```text
+v4 — Ridge
+v5 — Random Forest
+v6 — HistGradientBoosting
+```
+
+The Phase 6 candidates were evaluated and rejected because none beat the persistence baseline on the shifted production evaluation.
+
+The final serving state is therefore:
+
+```text
+Production alias:
+None
+
+Serving mode:
+baseline
+
+Serving strategy:
+Persistence
+
+Model name:
+persistence
+
+Model version:
+baseline
+```
+
+This state is intentional.
+
+The project does not create a false learned production model simply to demonstrate a promotion event.
+
+---
+
+# Final System Architecture
+
+The completed platform can be represented as:
+
+```text
+                         ┌───────────────────────┐
+                         │       BDG2 Data       │
+                         └───────────┬───────────┘
+                                     ↓
+                         ┌───────────────────────┐
+                         │ Validation & Features │
+                         └───────────┬───────────┘
+                                     ↓
+                         ┌───────────────────────┐
+                         │ Baselines + ML Models │
+                         └───────────┬───────────┘
+                                     ↓
+                         ┌───────────────────────┐
+                         │   MLflow Experiments  │
+                         └───────────┬───────────┘
+                                     ↓
+                         ┌───────────────────────┐
+                         │    Model Registry     │
+                         └───────────┬───────────┘
+                                     ↓
+                         ┌───────────────────────┐
+                         │ Evaluation + Guards   │
+                         └───────────┬───────────┘
+                                     ↓
+                         ┌───────────────────────┐
+                         │ Controlled Serving    │
+                         │ Learned / Baseline    │
+                         └───────────┬───────────┘
+                                     ↓
+                         ┌───────────────────────┐
+                         │ FastAPI Inference     │
+                         └───────────┬───────────┘
+                                     ↓
+                         ┌───────────────────────┐
+                         │ Application Platform  │
+                         │ Next.js + Express     │
+                         └───────────┬───────────┘
+                                     ↓
+                         ┌───────────────────────┐
+                         │ Prediction Monitoring │
+                         └───────────┬───────────┘
+                                     ↓
+              ┌──────────────────────┼──────────────────────┐
+              ↓                      ↓                      ↓
+       Data Quality            Feature Drift          Performance
+              │                      │                      │
+              └──────────────────────┼──────────────────────┘
+                                     ↓
+                         ┌───────────────────────┐
+                         │ Degradation Detection │
+                         └───────────┬───────────┘
+                                     ↓
+                         ┌───────────────────────┐
+                         │ Retraining Eligibility│
+                         └───────────┬───────────┘
+                                     ↓
+                         ┌───────────────────────┐
+                         │ Candidate Training    │
+                         └───────────┬───────────┘
+                                     ↓
+                         ┌───────────────────────┐
+                         │ Candidate Evaluation  │
+                         └───────────┬───────────┘
+                                     ↓
+                         ┌───────────────────────┐
+                         │ Promotion / Rejection │
+                         └───────────┬───────────┘
+                                     ↓
+                         ┌───────────────────────┐
+                         │ Production / Rollback │
+                         └───────────────────────┘
+```
+
+---
+
+# Final Lifecycle Demonstration
+
+The complete project can demonstrate the following sequence:
+
+```text
+1. Normal system
+        ↓
+2. Prediction
+        ↓
+3. Anomaly detection
+        ↓
+4. Model / serving health
+        ↓
+5. New simulated production data
+        ↓
+6. Controlled distribution shift
+        ↓
+7. Drift detection
+        ↓
+8. Performance evaluation
+        ↓
+9. Sustained degradation evidence
+        ↓
+10. Retraining eligibility
+        ↓
+11. Candidate training
+        ↓
+12. MLflow experiment tracking
+        ↓
+13. Candidate registration
+        ↓
+14. Candidate evaluation
+        ↓
+15. Persistence baseline comparison
+        ↓
+16. Promotion / rejection decision
+        ↓
+17. If accepted: production alias update
+        ↓
+18. If rejected: current serving strategy retained
+        ↓
+19. Inference
+        ↓
+20. Monitoring
+        ↓
+21. Future lifecycle decision
+```
+
+The actual Phase 6 demonstration followed the rejection path because the persistence baseline remained substantially stronger than the retrained candidates on the shifted evaluation scenario.
+
+This is an intentional lifecycle result rather than an incomplete implementation.
+
+---
+
+# Final Engineering Principles
+
+## 1. Build incrementally
+
+Each phase introduced one major engineering capability.
+
+## 2. Preserve contracts
+
+Later phases build on the interfaces established by earlier phases.
+
+## 3. Validate before advancing
+
+Every major phase was verified before becoming a dependency for subsequent work.
+
+## 4. Establish baselines before complexity
+
+A learned model must demonstrate measurable value against a simple reference.
+
+## 5. Evaluation precedes production
+
+A trained model is not automatically a production model.
+
+## 6. Candidate and production remain separate
+
+Candidate training cannot directly overwrite the serving state.
+
+## 7. Monitoring and retraining are separate systems
+
+Monitoring produces evidence.
+
+Retraining consumes an explicit eligibility decision.
+
+## 8. Drift does not automatically trigger retraining
+
+Feature drift is supporting evidence, not an unconditional retraining command.
+
+## 9. Sustained degradation matters
+
+A single poor observation or single poor performance window is insufficient to establish sustained degradation.
+
+## 10. Actual outcomes are required for performance measurement
+
+Predictions are recorded immediately, but performance can only be evaluated after the corresponding actual outcome becomes available.
+
+## 11. Persistence remains first-class
+
+Persistence is used consistently as:
+
+* Evaluation baseline.
+* Promotion guard.
+* Serving fallback.
+* Performance reference.
+* Retraining evaluation reference.
+
+## 12. Failure states remain explicit
+
+Examples include:
+
+```text
+rejected
+insufficient_data
+reference_unavailable
+not_eligible
+baseline serving
+```
+
+These are valid system states and are not hidden.
+
+## 13. Do not force successful promotion
+
+If every candidate fails evaluation, the existing serving strategy remains unchanged.
+
+## 14. Rollback must be safe
+
+Rollback operates only against an existing learned production state and a valid registered target.
+
+## 15. Prefer reproducibility
+
+Experiments, datasets, model versions, configurations, signatures, and lifecycle decisions should remain traceable.
+
+## 16. Avoid unnecessary infrastructure complexity
+
+The system is intentionally:
+
+* CPU-first.
+* Laptop-runnable.
+* Locally deployable.
+* Open-source oriented.
+* Free to develop.
+* Free from unnecessary GPU, LLM, agent, Kubernetes, and distributed infrastructure requirements.
+
+---
+
+# Final Project Status
+
+All implementation phases are complete:
 
 ```text
 Phase 0  ✓ Complete
@@ -1865,130 +2057,115 @@ Phase 2  ✓ Complete
 Phase 3  ✓ Complete
 Phase 4  ✓ Complete
 Phase 5  ✓ Complete
-Phase 6  → Planned
-Phase 7  → Planned
+Phase 6  ✓ Complete
 ```
+
+There is no Phase 7.
+
+There is no additional implementation phase required to complete the defined project lifecycle.
 
 ---
 
-# Completed System
+# Final System State
 
-At the end of Phase 5, the platform provides:
+The final platform provides:
 
 ```text
-                    ┌─────────────────────────┐
-                    │       BDG2 Data         │
-                    └────────────┬────────────┘
-                                 ↓
-                    ┌─────────────────────────┐
-                    │ Validation + Features   │
-                    └────────────┬────────────┘
-                                 ↓
-                    ┌─────────────────────────┐
-                    │ Baselines + ML Models   │
-                    └────────────┬────────────┘
-                                 ↓
-                    ┌─────────────────────────┐
-                    │ Evaluation + MLflow     │
-                    └────────────┬────────────┘
-                                 ↓
-                    ┌─────────────────────────┐
-                    │ Model Registry           │
-                    └────────────┬────────────┘
-                                 ↓
-                    ┌─────────────────────────┐
-                    │ Promotion Guard          │
-                    └────────────┬────────────┘
-                                 ↓
-                    ┌─────────────────────────┐
-                    │ Controlled Serving       │
-                    │ Learned / Baseline       │
-                    └────────────┬────────────┘
-                                 ↓
-                    ┌─────────────────────────┐
-                    │ FastAPI Inference        │
-                    └────────────┬────────────┘
-                                 ↓
-                    ┌─────────────────────────┐
-                    │ Prediction Monitoring    │
-                    └────────────┬────────────┘
-                                 ↓
-          ┌──────────────────────┼──────────────────────┐
-          ↓                      ↓                      ↓
-    Data Quality             Feature Drift        Performance
-          │                      │                      │
-          └──────────────────────┼──────────────────────┘
-                                 ↓
-                    ┌─────────────────────────┐
-                    │ Degradation Detection   │
-                    └────────────┬────────────┘
-                                 ↓
-                    ┌─────────────────────────┐
-                    │ Phase 6 Eligibility     │
-                    │ Foundation               │
-                    └─────────────────────────┘
+Historical Data
+      ↓
+Validation
+      ↓
+Feature Engineering
+      ↓
+Baseline + ML Training
+      ↓
+MLflow Tracking
+      ↓
+Model Registry
+      ↓
+Evaluation
+      ↓
+Promotion Guard
+      ↓
+Controlled Serving
+      ↓
+FastAPI Inference
+      ↓
+Application Platform
+      ↓
+Prediction Monitoring
+      ↓
+Data Quality
+      ↓
+Feature Drift
+      ↓
+Performance Monitoring
+      ↓
+Sustained Degradation
+      ↓
+Retraining Eligibility
+      ↓
+Candidate Retraining
+      ↓
+MLflow Candidate Tracking
+      ↓
+Candidate Evaluation
+      ↓
+Persistence Comparison
+      ↓
+Promotion / Rejection
+      ↓
+Production Alias / Existing Serving Strategy
+      ↓
+Rollback Capability
+      ↓
+Continued Inference & Monitoring
 ```
 
----
-
-# Engineering Principles Across All Phases
-
-## 1. Build incrementally
-
-Each phase adds one major engineering capability.
-
-## 2. Preserve contracts
-
-Later phases build on interfaces established by earlier phases.
-
-## 3. Validate before advancing
-
-Each phase should have explicit verification before becoming a dependency for the next phase.
-
-## 4. Baselines before complexity
-
-A complex learned model must demonstrate value against a simple reference.
-
-## 5. Evaluation before deployment
-
-A trained model is not automatically a production model.
-
-## 6. Monitoring before retraining
-
-The system should observe degradation before attempting to correct it.
-
-## 7. Evidence before lifecycle action
-
-Drift, performance, data quality, and service state should be interpreted together.
-
-## 8. Keep failure states explicit
-
-Examples include:
+The final operational serving state is:
 
 ```text
-rejected
-insufficient_data
-reference_unavailable
-baseline serving
+Serving mode:
+baseline
+
+Serving strategy:
+Persistence
+
+Learned production alias:
+None
 ```
 
-These are valid system states and should not be hidden.
+The final Phase 6 candidate state is:
 
-## 9. Prefer reproducibility
+```text
+v4 — Ridge                    REJECTED
+v5 — Random Forest            REJECTED
+v6 — HistGradientBoosting     REJECTED
+```
 
-Experiments, model versions, configurations, and lifecycle decisions should remain traceable.
+The candidates were rejected because none beat the persistence baseline on the controlled shifted-production evaluation.
 
-## 10. Avoid unnecessary infrastructure complexity
+The system therefore ends in a safe and internally consistent state:
 
-The system is intentionally CPU-first and laptop-runnable.
+```text
+No learned candidate passed the promotion gate
+                    ↓
+No learned production alias
+                    ↓
+Persistence remains the serving strategy
+                    ↓
+Monitoring remains active
+                    ↓
+Future data could produce a new eligibility decision
+```
 
-Infrastructure should be introduced when it solves a concrete engineering problem.
+No artificial promotion, forced model selection, or fabricated production state is introduced.
 
 ---
 
-# Current Architecture Maturity
+# Final Project Maturity
 
-The project has progressed through the following maturity levels:
+The completed project demonstrates the progression:
 
 ```text
 Phase 0
@@ -2011,52 +2188,53 @@ Tested + CI-Verified + Observable ML System
         ↓
 Phase 6
 Controlled Model Updating
-        ↓
-Phase 7
-Production Deployment
 ```
 
-The current completed architecture therefore demonstrates not only model training, but the surrounding engineering required to operate an ML forecasting system responsibly.
-
----
-
-# Current End State Before Phase 6
-
-At the end of Phase 5:
+The resulting system demonstrates not only model training, but the engineering surrounding an ML forecasting system:
 
 ```text
-ML Training                  ✓
-Baseline Evaluation          ✓
-Learned Model Evaluation     ✓
-Feature Engineering          ✓
-Inference Service            ✓
-Application Integration     ✓
-Docker                       ✓
-MLflow                       ✓
-Model Registry               ✓
-Promotion Guard              ✓
-Baseline Fallback            ✓
-Model Lab                    ✓
-Automated Tests              ✓
-CI Verification              ✓
-Prediction Monitoring        ✓
-Data Quality Monitoring      ✓
-Feature Drift Detection      ✓
-Performance Monitoring       ✓
-Building-Level Monitoring    ✓
-Sustained Degradation        ✓
-Monitoring Dashboard         ✓
-
-Automatic Retraining         →
-Controlled Promotion         ✓ Existing guard
-Cloud Deployment             →
+Data
++
+Machine Learning
++
+Software Engineering
++
+API Design
++
+Containerization
++
+Experiment Tracking
++
+Model Registry
++
+Evaluation
++
+Baseline Governance
++
+Monitoring
++
+Drift Detection
++
+Performance Monitoring
++
+Retraining Eligibility
++
+Candidate Management
++
+Promotion / Rejection
++
+Rollback
++
+Testing
++
+CI
 ```
 
-The next architectural step is therefore not another monitoring layer.
+The project is complete within its defined scope.
 
-The next step is the controlled retraining lifecycle defined by Phase 6.
+Its final architecture intentionally demonstrates a controlled ML lifecycle rather than pretending to be a production-scale cloud platform.
 
-The central lifecycle remains:
+The core engineering principle that governs the completed system is:
 
 ```text
 Build
@@ -2067,17 +2245,25 @@ Measure
   ↓
 Register
   ↓
+Evaluate
+  ↓
 Promote Carefully
   ↓
 Serve
   ↓
 Monitor
   ↓
-Detect Sustained Degradation
+Detect Evidence of Degradation
   ↓
 Establish Retraining Eligibility
   ↓
-Retrain Under Controlled Evaluation
+Train a Candidate
+  ↓
+Evaluate Again
+  ↓
+Promote or Reject
+  ↓
+Continue Monitoring
 ```
 
-Each phase should preserve the contracts and engineering decisions established by the previous phase rather than introducing unnecessary complexity prematurely.
+This is the final project phase structure and final lifecycle state.

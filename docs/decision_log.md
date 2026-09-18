@@ -1,18 +1,23 @@
+I’ve converted the existing decision history into a **final, project-complete 
 # Decision Log
 
-This document records important engineering and architectural decisions made during development of the Building & Energy Intelligence Platform.
+This document records the final engineering and architectural decisions made during development of the Building & Energy Intelligence Platform.
 
-The purpose is to preserve the reasoning behind major choices so that future changes can be evaluated against the original design constraints.
+The purpose of this document is to preserve the reasoning behind major technical choices and to provide an auditable record of the architecture, ML lifecycle, monitoring design, and final model lifecycle outcome.
+
+The project is complete at Phase 6. There is no subsequent implementation phase.
 
 ---
 
+# 1. Project and Data Foundations
+
 ## Decision 001 — Use BDG2 as the Initial Dataset
 
-**Status:** Accepted
+**Status:** Final
 
 ### Decision
 
-Use the Building Data Genome Project 2 (BDG2) dataset as the initial source of building energy and contextual data.
+Use the Building Data Genome Project 2 (BDG2) dataset as the source of building energy, metadata, and weather information.
 
 ### Reason
 
@@ -24,33 +29,23 @@ BDG2 provides:
 - hourly observations
 - multiple buildings
 
-This makes it suitable for developing an end-to-end building-energy intelligence system rather than a simple single-table ML exercise.
+This makes it suitable for demonstrating an end-to-end building-energy intelligence platform rather than a single-table ML exercise.
 
 ---
 
-## Decision 002 — Build the Project Incrementally
+## Decision 002 — Develop the Platform Incrementally
 
-**Status:** Accepted
+**Status:** Final
 
 ### Decision
 
-Develop the platform through explicit phases instead of implementing the complete stack at once.
+Develop the platform through explicit implementation phases, validating and documenting each major architectural layer before introducing the next layer.
 
 ### Reason
 
-The project is intended to demonstrate engineering maturity as well as machine-learning ability.
+The project is intended to demonstrate engineering maturity in addition to machine-learning ability.
 
-A phased architecture allows each layer to be:
-
-- implemented
-- tested
-- validated
-- documented
-- committed to Git
-
-before additional complexity is introduced.
-
-Current progression:
+The completed development progression was:
 
 ```text
 Phase 0
@@ -69,23 +64,25 @@ Phase 4
 MLOps + Model Lifecycle
       ↓
 Phase 5
-Testability + CI + Observability
+Testing + CI + Observability
       ↓
 Phase 6
-Controlled Retraining
+Controlled Retraining + Final Lifecycle
 ````
 
-Phase 6 is the next planned lifecycle stage. Automatic retraining is not part of Phase 5.
+Phase 6 is the final implementation phase.
+
+There is no Phase 7.
 
 ---
 
 ## Decision 003 — Keep the System CPU-First
 
-**Status:** Accepted
+**Status:** Final
 
 ### Decision
 
-The initial platform must run locally on a normal development laptop without requiring a GPU.
+The platform must run locally on a normal development laptop without requiring a GPU.
 
 ### Reason
 
@@ -94,65 +91,84 @@ The project is intended to remain:
 * accessible
 * inexpensive
 * reproducible
-* easy to develop locally
+* locally runnable
+* practical to demonstrate
 
-The initial ML workload does not require GPU infrastructure.
-
-GPU-dependent technologies will therefore not be introduced unless a future requirement genuinely justifies them.
+The current workload does not justify GPU infrastructure.
 
 ---
 
-## Decision 004 — Do Not Introduce LLMs or Agents
+## Decision 004 — Do Not Introduce LLMs or Autonomous Agents
 
-**Status:** Accepted
+**Status:** Final
 
 ### Decision
 
-The core platform will not depend on LLMs, autonomous agents, or transformer models.
+The core platform does not depend on:
+
+* LLMs
+* autonomous agents
+* transformer models
+* LLM serving infrastructure
 
 ### Reason
 
-The project is intended to demonstrate:
+The project demonstrates:
 
-* conventional ML
+* conventional machine learning
 * data engineering
 * inference
 * application architecture
 * MLOps
+* monitoring
+* controlled model lifecycle management
 
-The central problem is building-energy intelligence rather than adding an LLM merely for demonstration purposes.
+LLMs or agents would not provide necessary functionality for the core building-energy problem.
 
 ---
 
-## Decision 005 — Establish a Persistence Baseline
+## Decision 005 — Establish Persistence as the Primary Baseline
 
-**Status:** Accepted
+**Status:** Final
 
 ### Decision
 
-Use persistence forecasting as the primary benchmark baseline.
+Use persistence forecasting as the primary benchmark and operational reference.
 
 ### Reason
 
-A machine-learning model should not be considered useful simply because it produces predictions.
+A learned model should not be considered useful merely because it generates predictions.
 
-It must outperform a meaningful baseline.
+It must demonstrate value relative to a meaningful baseline.
 
-For short-horizon energy forecasting, persistence provides a simple and interpretable benchmark.
+The persistence strategy is:
 
-The baseline therefore remains part of model evaluation even after introducing more complex models.
+```text
+Latest observed energy value
+        ↓
+Next-hour prediction
+```
+
+Persistence therefore remains part of:
+
+* model evaluation
+* promotion
+* serving
+* performance monitoring
+* retraining eligibility
+* candidate evaluation
 
 ---
 
 ## Decision 006 — Retain Learned Models as Evaluated Challengers
 
-**Status:** Accepted
+**Status:** Final
 
 ### Decision
 
-Retain evaluated learned model families in the MLflow registry even when persistence performs better.
+Retain learned models in MLflow even when persistence performs better.
 
-The current learned model families are:
+The learned model families are:
 
 ```text
 Ridge
@@ -162,49 +178,47 @@ HistGradientBoosting
 
 ### Reason
 
-The project needs to demonstrate a complete learned-model lifecycle while preserving a meaningful baseline.
+The project must demonstrate a real ML lifecycle.
 
-A learned model may be registered, evaluated, inspected, and rejected without being promoted to production.
-
-This distinction is important:
+A learned model can be:
 
 ```text
-Benchmark Baseline:
-Persistence
-
-Evaluated Learned Models:
-Ridge
-Random Forest
-HistGradientBoosting
+trained
+→ registered
+→ evaluated
+→ compared
+→ rejected
 ```
 
-Learned models must not be described as production models unless they pass the defined promotion gate.
+without being incorrectly represented as a production model.
 
 ---
 
+# 2. ML and Inference Architecture
+
 ## Decision 007 — Preserve Feature Parity Between Training and Inference
 
-**Status:** Accepted
+**Status:** Final
 
 ### Decision
 
-The feature construction used by the FastAPI inference service must reproduce the feature definitions established during Phase 1.
+Inference must reproduce the feature definitions established during model development.
 
 ### Reason
 
 Training-serving skew can occur when training and inference construct features differently.
 
-The inference service therefore reconstructs the required features from the supplied historical context rather than using an unrelated feature definition.
-
-This establishes a controlled boundary:
+The architecture therefore maintains:
 
 ```text
-Phase 1 Feature Logic
-        ↓
+Feature Definition
+       ↓
 Training
+       ↓
+Registered Model
 
-Same Feature Contract
-        ↓
+Same Feature Definition
+       ↓
 Inference
 ```
 
@@ -212,29 +226,34 @@ Inference
 
 ## Decision 008 — Require 168 Hours of Historical Context
 
-**Status:** Accepted
+**Status:** Final
 
 ### Decision
 
-The forecasting inference contract requires 168 hourly historical observations preceding the prediction timestamp.
+The prediction contract requires 168 hourly historical observations preceding the prediction timestamp.
 
 ### Reason
 
-The Phase 1 feature set includes historical and rolling information that requires a sufficient historical window.
+The forecasting feature set requires sufficient historical context for:
 
-Requiring the complete context at the API boundary makes the inference contract explicit and prevents silently producing predictions from incomplete history.
+* lag features
+* rolling statistics
+* temporal features
+* historical energy behavior
+
+The requirement is validated at the FastAPI boundary.
 
 ---
 
 ## Decision 009 — Separate ML Inference from the Application API
 
-**Status:** Accepted
+**Status:** Final
 
 ### Decision
 
-Use a dedicated FastAPI ML service behind a Node.js/Express application API.
+Use a dedicated FastAPI ML service behind the Node.js/Express application API.
 
-The intended request path is:
+### Architecture
 
 ```text
 Next.js
@@ -243,29 +262,25 @@ Express
    ↓
 FastAPI
    ↓
-ML Serving Layer
+ML Serving Strategy
 ```
 
 ### Reason
 
-This separation provides clear responsibilities.
-
-The frontend should not need to know:
+The frontend and application layer should not need to know:
 
 * how the model is loaded
 * how features are constructed
-* how the model artifact is serialized
+* how artifacts are serialized
 * how inference is performed
 
 The ML service owns those responsibilities.
-
-The Express API acts as the application boundary.
 
 ---
 
 ## Decision 010 — Use Next.js for the Web Application
 
-**Status:** Accepted
+**Status:** Final
 
 ### Decision
 
@@ -279,15 +294,13 @@ The application requires:
 * reusable components
 * typed API interaction
 * responsive UI
-* interactive analytical visualizations
-
-Next.js provides the application framework while React handles the UI layer.
+* analytical visualization
 
 ---
 
 ## Decision 011 — Use Express as the Application API
 
-**Status:** Accepted
+**Status:** Final
 
 ### Decision
 
@@ -295,27 +308,27 @@ Use Node.js with Express as the application-facing API.
 
 ### Reason
 
-The application layer needs to coordinate:
+The application layer coordinates:
 
 * building metadata
 * historical consumption
 * prediction context
 * ML-service communication
 * anomaly analysis
-* ML lifecycle information
+* Model Lab information
 * monitoring information
 
-Express provides a lightweight service boundary without introducing unnecessary infrastructure at the current stage.
+Express provides a lightweight application boundary appropriate for the current system.
 
 ---
 
-## Decision 012 — Keep API, Service, and Repository Responsibilities Separate
+## Decision 012 — Separate Routes, Services, and Repositories
 
-**Status:** Accepted
+**Status:** Final
 
 ### Decision
 
-The Express application separates:
+The Express application uses:
 
 ```text
 Routes
@@ -327,27 +340,19 @@ Repositories
 
 ### Reason
 
-This prevents route handlers from becoming responsible for data access and application logic simultaneously.
+This prevents route handlers from simultaneously owning:
 
-For example:
+* HTTP handling
+* business logic
+* data access
 
-```text
-Route
-  ↓
-Prediction Service
-  ↓
-Prediction Repository
-  ↓
-FastAPI
-```
-
-This structure also makes future testing and replacement of individual components easier.
+It also makes individual layers easier to test and replace.
 
 ---
 
-## Decision 013 — Use Parquet for the Current Processed Dataset
+## Decision 013 — Use Parquet for the Canonical Processed Dataset
 
-**Status:** Accepted
+**Status:** Final
 
 ### Decision
 
@@ -357,7 +362,7 @@ Use:
 data/processed/phase1_features.parquet
 ```
 
-as the canonical Phase 1 processed feature dataset.
+as the canonical processed feature dataset.
 
 ### Reason
 
@@ -368,68 +373,63 @@ Parquet provides:
 * compact representation
 * compatibility with Python data workflows
 
-It also keeps the early system simple without requiring a database before one is necessary.
+A database is not required for the current historical dataset.
 
 ---
 
-## Decision 014 — Do Not Introduce MongoDB in Phase 3
+## Decision 014 — Do Not Introduce an Application Database
 
-**Status:** Accepted
+**Status:** Final
 
 ### Decision
 
-Do not introduce MongoDB or another application database during Phase 3.
+Do not introduce MongoDB or another dedicated application database for the completed scope.
 
 ### Reason
 
-The current application primarily needs access to a relatively small, static set of building metadata and historical development data.
+The current system can operate using:
 
-Introducing a database at this stage would add infrastructure without solving an immediate architectural requirement.
+* processed Parquet data
+* application metadata
+* MLflow storage
+* model artifacts
+* bounded in-memory monitoring state
 
-A persistent application database can be introduced later if the platform requires:
-
-* user-specific state
-* operational records
-* prediction history
-* configuration
-* alerts
-* monitoring records
+A database would add infrastructure without being required by the completed product.
 
 ---
 
-## Decision 015 — Export Building Metadata for the Application Layer
+## Decision 015 — Export Building Metadata for the Application
 
-**Status:** Accepted
+**Status:** Final
 
 ### Decision
 
-Create an application-facing building metadata file:
+Use:
 
 ```text
 apps/api/src/data/buildings.json
 ```
 
+as the application-facing building metadata source.
+
 ### Reason
 
-The application currently needs a stable and simple source for building metadata.
+The application needs a stable, simple building metadata interface.
 
-This avoids forcing the application API to perform unnecessary data-processing operations every time the building list is requested.
-
-The export is generated from the selected Phase 1 building metadata.
+This avoids unnecessary data-processing work on every building request.
 
 ---
 
-## Decision 016 — Keep Historical Consumption Access Separate from Building Metadata
+## Decision 016 — Separate Building Metadata from Historical Consumption
 
-**Status:** Accepted
+**Status:** Final
 
 ### Decision
 
-Building metadata and historical consumption are accessed through separate repositories.
+Building metadata and historical consumption use separate repositories.
 
-### Reason
-
-They have different access patterns and responsibilities.
+### Architecture
 
 ```text
 Building Metadata
@@ -441,75 +441,65 @@ Historical Consumption
 Consumption Repository
 ```
 
-This separation also leaves room for future storage technologies without requiring changes to the frontend contract.
+### Reason
+
+The two datasets have different purposes and access patterns.
 
 ---
 
-## Decision 017 — Use Typed API Contracts
+## Decision 017 — Use Explicit API Contracts
 
-**Status:** Accepted
+**Status:** Final
 
 ### Decision
 
-Use TypeScript types for application API responses and Pydantic schemas for FastAPI request/response validation.
+Use:
+
+* TypeScript types for application API contracts
+* Pydantic schemas for FastAPI request/response validation
 
 ### Reason
 
-The system crosses multiple service boundaries.
+The platform crosses multiple service boundaries.
 
-Explicit contracts reduce ambiguity and make incompatible changes easier to detect.
-
-The current conceptual contract is:
-
-```text
-React / TypeScript
-        ↓
-Express API
-        ↓
-FastAPI / Pydantic
-        ↓
-ML Serving
-```
+Explicit contracts make incompatible changes easier to detect.
 
 ---
 
-## Decision 018 — Validate the ML Service at Its Boundary
+## Decision 018 — Validate Prediction Requests at the ML Boundary
 
-**Status:** Accepted
+**Status:** Final
 
 ### Decision
 
-The FastAPI service validates incoming prediction requests before inference.
+FastAPI validates prediction requests before inference.
 
-### Reason
-
-Invalid prediction context should be rejected before it reaches the model.
-
-Validation includes requirements such as:
+Validation includes conditions such as:
 
 * valid timestamps
 * non-negative energy values
 * sufficient historical context
-* duplicate detection
+* unique observations
 * chronological ordering
-
-This turns assumptions in the model pipeline into explicit API constraints.
-
----
-
-## Decision 019 — Load the Serving Configuration at Service Startup
-
-**Status:** Accepted
-
-### Decision
-
-The FastAPI ML service initializes its serving configuration during application startup.
+* valid request structure
 
 ### Reason
 
-Loading and configuring the serving path for every request would introduce unnecessary overhead.
+Invalid prediction context should fail explicitly before reaching the model.
 
-Startup initialization also provides an explicit readiness state.
+---
+
+## Decision 019 — Initialize Serving Configuration at Startup
+
+**Status:** Final
+
+### Decision
+
+The FastAPI service initializes its serving configuration during startup.
+
+### Reason
+
+This avoids repeatedly resolving model configuration for every request and provides explicit readiness information.
 
 The service exposes:
 
@@ -518,129 +508,76 @@ The service exposes:
 /ready
 ```
 
-so that basic service health and serving readiness can be distinguished.
-
-The serving layer can resolve either:
-
-```text
-MLflow-managed learned model
-```
-
-or:
-
-```text
-Persistence baseline
-```
-
-depending on the current lifecycle state.
-
 ---
 
-## Decision 020 — Keep Model Version Information in the Prediction Response
+## Decision 020 — Include Model Identity in Prediction Responses
 
-**Status:** Accepted
+**Status:** Final
 
 ### Decision
 
-Prediction responses include:
+Prediction responses expose:
 
 ```text
 model_name
 model_version
 ```
 
+and the serving state identifies whether the system is using a learned model or the persistence baseline.
+
 ### Reason
 
-Predictions should be traceable to the serving strategy and model version that produced them.
+Predictions must be traceable to the serving strategy that produced them.
 
-This becomes increasingly important once the platform introduces:
-
-* model versioning
-* model promotion
-* experiment tracking
-* monitoring
-* retraining
-
-The current baseline-serving state reports:
+The final baseline-serving state is:
 
 ```text
 model_name = persistence
 model_version = baseline
+serving_mode = baseline
 ```
-
-when no learned model owns the production alias.
 
 ---
 
-## Decision 021 — Treat the Current Forecast as a Demonstration of Inference
+## Decision 021 — Treat the Current Forecast as a Historical Inference Demonstration
 
-**Status:** Accepted
+**Status:** Final
 
 ### Decision
 
-The current application demonstrates model inference using historical BDG2 timestamps.
+The current forecasting application is a historical-data inference demonstration, not a live telemetry forecasting platform.
 
 ### Reason
 
-The available dataset ends in 2017.
+The BDG2 development data ends in 2017.
 
-Therefore, the current forecast endpoint demonstrates the complete prediction pipeline but does not represent a live production forecast of an actual current building.
+Therefore the project must not describe its current historical inference as live real-world building telemetry.
 
-This distinction must be preserved in future documentation and UI wording.
-
-The system should not claim that the current historical prediction is a live future-energy forecast.
-
----
-
-## Decision 022 — Keep Phase 3 Focused on Application Integration
-
-**Status:** Accepted
-
-### Decision
-
-Phase 3 focuses on connecting:
+The distinction is:
 
 ```text
-ML
-+
-API
-+
-Web Application
+Current System
+Historical inference demonstration
+
+Not implemented
+Live operational telemetry
 ```
-
-without introducing the complete MLOps stack.
-
-### Reason
-
-The project needs a working end-to-end application before adding lifecycle infrastructure.
-
-Therefore Phase 3 intentionally excludes:
-
-* MLflow
-* model registry
-* automated model promotion
-* drift detection
-* production monitoring
-* automated retraining
-* CI/CD deployment
-* cloud deployment
-* Docker-based production orchestration
-
-These belong to later phases.
 
 ---
 
-## Decision 023 — Introduce MLOps After the End-to-End Application Works
+# 3. Application Architecture
 
-**Status:** Accepted
+## Decision 022 — Keep Application Integration Separate from MLOps Infrastructure
+
+**Status:** Final
 
 ### Decision
 
-MLOps infrastructure will be introduced after the core application workflow is operational.
+The application layer and ML lifecycle infrastructure remain separate concerns.
 
 ### Reason
 
-The platform should first establish:
+The application must first provide a stable:
 
 ```text
 Data
@@ -654,82 +591,94 @@ API
 UI
 ```
 
-before introducing lifecycle automation.
+path.
 
-This makes it possible to attach experiment tracking, model management, monitoring, and retraining to a functioning system rather than building infrastructure around an incomplete application.
+ML lifecycle infrastructure operates around that path rather than replacing it.
 
 ---
 
-## Decision 024 — Use Champion / Challenger Model Lifecycle
+## Decision 023 — Introduce MLOps Around a Working Application
 
-**Status:** Implemented
+**Status:** Final
+
+### Decision
+
+MLOps infrastructure is attached to the functioning application and inference system.
+
+### Reason
+
+This ensures that:
+
+* experiment tracking
+* model management
+* monitoring
+* retraining
+* promotion
+* rollback
+
+operate around a real application rather than an isolated notebook.
+
+---
+
+## Decision 024 — Use a Champion/Challenger Lifecycle
+
+**Status:** Final
 
 ### Decision
 
 The model lifecycle distinguishes between:
 
+* persistence baseline
 * evaluated learned candidates
-* a production model when one qualifies
-* the persistence baseline when no learned model qualifies
+* learned production model when one qualifies
 
-The intended lifecycle is:
+### Architecture
 
 ```text
 Candidate
    ↓
 Evaluation
    ↓
-Challenger
-   ↓
 Promotion Gate
    ↓
-Production Model
+Production
 ```
 
-### Reason
-
-The Phase 1 results demonstrated why this distinction matters.
-
-A newer or more complex model should not automatically replace an existing serving strategy.
-
-Promotion should depend on predefined evaluation criteria.
-
-The current registry retains evaluated learned models and explicit lifecycle metadata.
+A learned candidate does not become production merely because it is newer or better than other learned candidates.
 
 ---
 
 ## Decision 025 — Use MLflow as the Lifecycle Authority
 
-**Status:** Implemented
+**Status:** Final
 
 ### Decision
 
 MLflow is the lifecycle authority for:
 
-* experiment tracking
-* registered model versions
+* experiments
+* model runs
 * model artifacts
-* lifecycle metadata
+* registered versions
 * model signatures
+* lifecycle metadata
 * aliases
 
 ### Reason
 
-Model lifecycle state should not depend solely on local `.joblib` files.
+Model lifecycle state should not depend only on local `.joblib` files.
 
-MLflow provides a central local registry for the Dockerized system while preserving model lineage and version information.
-
-Local model files remain useful for development and historical artifacts, but the Dockerized lifecycle path uses MLflow.
+MLflow provides the registry and lineage required by the completed architecture.
 
 ---
 
 ## Decision 026 — Record Reproducibility Metadata
 
-**Status:** Implemented
+**Status:** Final
 
 ### Decision
 
-Training runs should record sufficient metadata to make experiments traceable.
+Training runs record sufficient metadata to trace model creation.
 
 Tracked information includes:
 
@@ -738,115 +687,85 @@ Tracked information includes:
 * test metrics
 * dataset/reference metadata
 * configuration
-* Git commit information
-* model artifacts
+* Git information
+* artifacts
 * model signatures
+* model-family information
+* lifecycle metadata where applicable
 
 ### Reason
 
 A model should be traceable to the experiment and source state that produced it.
 
-This establishes the foundation required for reliable model comparison and future retraining.
-
 ---
 
 ## Decision 027 — Compare Learned Models Against a Common Baseline
 
-**Status:** Implemented
+**Status:** Final
 
 ### Decision
 
-The persistence baseline remains part of the model evaluation and promotion process.
+Learned models must be evaluated against persistence using the same relevant evaluation definition.
 
 ### Reason
 
-A learned model should not be promoted merely because it performs better than other learned models.
-
-The system must determine whether the learned candidate provides sufficient improvement over a simple operational benchmark.
-
-The comparison must use the same evaluation criterion on both sides.
+Being better than another learned model is not sufficient evidence that a learned model should replace the operational baseline.
 
 ---
 
 ## Decision 028 — Use a Baseline-Aware Promotion Guard
 
-**Status:** Implemented
+**Status:** Final
 
 ### Decision
 
-The promotion system must compare the best evaluated learned model against the persistence baseline using the same promotion metric.
+Promotion requires comparison of the candidate learned model against persistence using the defined promotion metric.
 
-The current promotion metric is:
+The promotion metric is:
 
 ```text
 validation_macro_building_nmae
-```
-
-The intended decision is:
-
-```text
-Best Evaluated Learned Model
-            ↓
-Validation Macro-Building NMAE
-            ↓
-Compare with Persistence
-            ↓
-        Baseline Guard
-          /       \
-       PASS       FAIL
-        ↓           ↓
-   Production    Reject
 ```
 
 ### Reason
 
 The system must not compare incompatible metrics.
 
-In particular, a learned model's macro-building NMAE must not be compared against an aggregate baseline NMAE.
-
-This prevents a metric-definition mismatch from causing an invalid promotion decision.
+The promotion guard therefore preserves metric-definition consistency.
 
 ---
 
-## Decision 029 — Do Not Force a Learned Model into Production
+## Decision 029 — Never Force a Learned Model into Production
 
-**Status:** Accepted
+**Status:** Final
 
 ### Decision
 
-A learned model is not promoted simply to populate the production alias.
+A learned model is not promoted merely to populate the production alias.
 
 ### Reason
 
-The evaluation process must be allowed to conclude that the baseline is currently preferable.
-
-If no learned candidate beats the persistence baseline under the defined promotion criterion:
+The lifecycle must be able to conclude:
 
 ```text
-No learned production model
+No learned candidate qualifies
         ↓
 Persistence remains operational
 ```
 
-This preserves the integrity of the evaluation process.
+This is a valid lifecycle outcome.
 
 ---
 
-## Decision 030 — Keep Persistence as an Operational Fallback
+## Decision 030 — Use Persistence as the Operational Fallback
 
-**Status:** Implemented
+**Status:** Final
 
 ### Decision
 
-When no valid learned production alias exists, the model service serves the persistence baseline.
+When no valid learned model owns the production alias, FastAPI serves persistence.
 
-### Reason
-
-The application should remain operational even when no learned candidate qualifies for production.
-
-The persistence strategy uses the most recent observed energy value as the next-hour prediction.
-
-The current serving state is therefore:
+### Final serving state
 
 ```text
 serving_mode = baseline
@@ -854,23 +773,25 @@ model_name = persistence
 model_version = baseline
 ```
 
-This is an intentional lifecycle state rather than a deployment error.
+### Reason
+
+The application remains operational without bypassing the model-promotion gate.
 
 ---
 
 ## Decision 031 — Register Learned Models in MLflow
 
-**Status:** Implemented
+**Status:** Final
 
 ### Decision
 
-Learned model artifacts are registered in the MLflow Model Registry under:
+Learned models are registered under:
 
 ```text
 building-energy-forecast
 ```
 
-The current registered versions are:
+The initial learned versions are:
 
 ```text
 v1 — Ridge
@@ -878,99 +799,80 @@ v2 — Random Forest
 v3 — HistGradientBoosting
 ```
 
-### Reason
+Phase 6 candidate versions are:
 
-Registry versioning provides a persistent representation of evaluated model artifacts and their lifecycle metadata.
-
-This makes model history inspectable without relying only on filenames in the local `models/` directory.
+```text
+v4 — Ridge
+v5 — Random Forest
+v6 — HistGradientBoosting
+```
 
 ---
 
-## Decision 032 — Record Rejected Candidates Explicitly
+## Decision 032 — Preserve Rejected Candidates
 
-**Status:** Implemented
+**Status:** Final
 
 ### Decision
 
-A learned model that fails the promotion guard should remain visible in the registry with an explicit rejected lifecycle state rather than being silently deleted.
+Rejected models remain represented in MLflow with lifecycle metadata rather than being silently deleted.
 
 ### Reason
 
-Rejected candidates are useful for understanding:
+A rejected candidate provides valuable lifecycle evidence:
 
-* which model was evaluated
-* why it was evaluated
-* which promotion criterion was used
-* why it was not promoted
+* what was trained
+* what was evaluated
+* which metrics were used
+* why it was rejected
 
-This creates an auditable model lifecycle.
-
-The current registry contains a rejected Random Forest candidate alongside other evaluated learned versions.
+This creates an auditable model history.
 
 ---
 
 ## Decision 033 — Verify MLflow Model Signatures
 
-**Status:** Implemented
+**Status:** Final
 
 ### Decision
 
-Registered model versions must expose compatible MLflow input signatures.
+Registered model versions must preserve compatible MLflow input signatures.
 
 ### Reason
 
-Model signatures provide an explicit representation of the model's expected input contract.
+Model signatures provide an explicit representation of the model input contract.
 
-The registered versions were verified against the Docker-hosted MLflow server.
-
-The signatures cover the feature categories required by the forecasting pipeline, including:
-
-* building metadata
-* weather features
-* calendar features
-* lag features
-* rolling features
-* degree-hour features
-
-This provides an additional safeguard against model/inference contract mismatch.
+The registered model versions were verified against the Docker-hosted MLflow server.
 
 ---
 
 ## Decision 034 — Keep the Model-Service Image Focused
 
-**Status:** Accepted
+**Status:** Final
 
 ### Decision
 
-When operating through the MLflow lifecycle, the model-service image should not bundle the complete local dataset or local model directory.
+The model-service container focuses on:
 
-### Reason
+* inference code
+* required dependencies
+* serving configuration
+* MLflow model access
+* monitoring
 
-The serving image should contain the inference application and its required dependencies while retrieving lifecycle-managed model artifacts through MLflow.
-
-This keeps the serving image focused on:
-
-```text
-Inference Code
-+
-Dependencies
-+
-Serving Configuration
-```
-
-rather than duplicating the complete development environment.
+rather than bundling the complete development dataset and model-development environment.
 
 ---
 
 ## Decision 035 — Use Docker Compose for Local Reproducibility
 
-**Status:** Implemented
+**Status:** Final
 
 ### Decision
 
-Use Docker Compose to run the local application stack.
+Use Docker Compose for the local production-style stack.
 
-The current services are:
+Services:
 
 ```text
 Web
@@ -981,113 +883,106 @@ MLflow
 
 ### Reason
 
-Docker Compose provides reproducible service boundaries and networking without introducing unnecessary cloud infrastructure.
+Docker Compose provides:
 
-The local service communication is:
+* reproducible service boundaries
+* local networking
+* isolated dependencies
+* persistent MLflow storage
 
-```text
-Browser
-   ↓
-Web :3000
-   ↓
-API :4000
-   ↓
-Model Service :8000
-   ↓
-MLflow :5000
-```
-
-MLflow state is persisted through the Docker volume:
-
-```text
-mlflow-data
-```
+without requiring cloud infrastructure.
 
 ---
 
 ## Decision 036 — Keep Infrastructure Local-First
 
-**Status:** Accepted
+**Status:** Final
 
 ### Decision
 
-Docker Compose and MLflow are intentionally used as a local reproducibility layer before introducing cloud infrastructure.
+The completed project remains local-first.
+
+Cloud infrastructure, Kubernetes, distributed systems, and similar infrastructure are not required by the current scope.
 
 ### Reason
 
-The project is designed to prove the engineering workflow locally first.
+The project prioritizes:
 
-Cloud deployment, Kubernetes, distributed infrastructure, and other operational complexity should be introduced only when the local lifecycle is stable and there is a genuine requirement for them.
+```text
+Correctness
++
+Reproducibility
++
+Testability
++
+Observability
++
+Clear Architecture
+```
+
+over infrastructure complexity that does not solve a current requirement.
 
 ---
 
 ## Decision 037 — Keep Model Lifecycle Separate from the Frontend
 
-**Status:** Implemented
+**Status:** Final
 
 ### Decision
 
-The frontend should observe model lifecycle information through the application API rather than directly controlling MLflow.
+The frontend does not directly control MLflow.
 
-### Reason
-
-The frontend is a presentation layer.
-
-The model lifecycle belongs to the ML/service layer.
-
-The intended boundary is:
+The boundary is:
 
 ```text
-Model Lifecycle
+ML Lifecycle
       ↓
 FastAPI
       ↓
 Express API
       ↓
-Model Lab UI
+Model Lab
 ```
 
-This prevents the frontend from becoming coupled to MLflow implementation details.
+### Reason
+
+The frontend is a presentation and interaction layer, not the lifecycle authority.
 
 ---
 
-## Decision 038 — Introduce Model Lab as an Observability Surface
+## Decision 038 — Use Model Lab as a Lifecycle Observability Surface
 
-**Status:** Implemented
+**Status:** Final
 
 ### Decision
 
-Provide a dedicated Model Lab interface for inspecting model lifecycle information.
-
-The Model Lab surface exposes information such as:
+Model Lab exposes:
 
 * registered versions
 * model families
-* evaluation status
-* rejection status
-* run information
+* runs
 * metrics
 * parameters
 * baseline information
+* evaluation state
+* lifecycle state
 * production/serving state
 
 ### Reason
 
-The project should make the model lifecycle visible rather than treating MLflow as hidden infrastructure.
+The ML lifecycle should be visible as part of the product.
 
-Model Lab is an observability surface.
-
-It is not itself the authority that decides model promotion.
+Model Lab does not independently decide production state.
 
 ---
 
 ## Decision 039 — Keep Anomaly Detection Separate from Forecasting
 
-**Status:** Implemented
+**Status:** Final
 
 ### Decision
 
-Anomaly detection is implemented as a separate application capability rather than modifying the forecasting model.
+Anomaly detection is a separate application capability.
 
 ### Reason
 
@@ -1095,79 +990,75 @@ Forecasting and anomaly detection answer different questions:
 
 ```text
 Forecasting
-"What energy use should occur next?"
+"What should happen next?"
 
 Anomaly Detection
-"Does this observed energy use look unusual?"
+"Does this observed behavior look unusual?"
 ```
 
-Separating the two allows each capability to evolve independently.
-
-The current anomaly service uses historical consumption behavior and a rolling statistical detection approach.
+The anomaly service therefore does not modify the forecasting model.
 
 ---
 
-## Decision 040 — Keep the Application Database-Free for the Current Scope
+## Decision 040 — Keep the Application Database-Free
 
-**Status:** Accepted
+**Status:** Final
 
 ### Decision
 
-Do not introduce an application database merely to support the current dashboard and lifecycle views.
+The completed application does not require a dedicated application database.
 
 ### Reason
 
-The current system can operate using:
+The current architecture is adequately represented by:
 
-* processed Parquet data
-* application metadata
-* MLflow storage
-* model artifacts
-* bounded in-memory monitoring state
-
-A database can be introduced later if the application develops a genuine requirement for persistent operational state.
+```text
+Processed Data
++
+Application Metadata
++
+MLflow
++
+Model Artifacts
++
+Bounded Monitoring State
+```
 
 ---
 
-## Decision 041 — Validate the Complete System at Phase Boundaries
+# 4. Engineering Verification Decisions
 
-**Status:** Accepted
+## Decision 041 — Validate the System at Major Boundaries
+
+**Status:** Final
 
 ### Decision
 
-Each phase should finish with implementation verification and documentation before the next major phase begins.
+Major architectural changes must be verified through explicit testing and build checks.
 
-### Reason
-
-The project is intended to demonstrate a reproducible engineering process rather than simply a final collection of code.
-
-The expected workflow is:
+The working pattern is:
 
 ```text
 Implement
    ↓
 Run
    ↓
-Inspect
-   ↓
 Verify
    ↓
 Document
    ↓
 Git Checkpoint
-   ↓
-Next Phase
 ```
 
 ---
 
-## Decision 042 — Phase 4 Stops at Controlled Model Serving
+## Decision 042 — Complete Phase 4 at Controlled Model Serving
 
-**Status:** Completed
+**Status:** Final
 
 ### Decision
 
-Phase 4 ends after establishing:
+Phase 4 established:
 
 ```text
 Training
@@ -1183,265 +1074,176 @@ Baseline Guard
 Controlled Serving
 ```
 
-### Reason
-
-Phase 4 establishes the model lifecycle foundation without prematurely implementing every future MLOps capability.
-
-The following were intentionally deferred to Phase 5 or later:
-
-* GitHub Actions CI
-* automated monitoring
-* data drift detection
-* prediction-performance monitoring
-* service observability
-* automated retraining
-* automated production promotion without evaluation
-* cloud deployment
-* Kubernetes
-* distributed infrastructure
-* large-scale LLM or agent infrastructure
+This became the foundation for monitoring and retraining.
 
 ---
 
-# Phase 5 — Testability, CI and Observability
+# 5. Testing and CI Decisions
 
-Phase 5 extends the platform from a functioning ML lifecycle into a system that can automatically verify its behavior and observe operational conditions.
+## Decision 043 — Treat Testing as a Multi-Layer Concern
 
-The Phase 5 design principle is:
-
-```text
-Test
- ↓
-Verify
- ↓
-Observe
- ↓
-Detect
- ↓
-Decide
-```
-
-Phase 5 does not automatically retrain or automatically replace the serving model.
-
----
-
-## Decision 043 — Treat Testing as a Multi-Layer System Concern
-
-**Status:** Implemented
+**Status:** Final
 
 ### Decision
 
-Testing must cover multiple layers of the platform rather than only individual functions.
+Testing covers multiple layers rather than only isolated functions.
 
-The testing strategy includes:
+The completed testing architecture covers:
 
 ```text
-Unit Tests
-    ↓
-Integration Tests
-    ↓
-API / Service Contract Tests
-    ↓
+Unit
+ ↓
+Integration
+ ↓
+Service / API Contracts
+ ↓
 Application Verification
-    ↓
+ ↓
 Build Verification
 ```
-
-### Reason
-
-An ML platform can fail even when individual functions work correctly.
-
-Potential failures can occur at:
-
-* data validation
-* feature construction
-* model behavior
-* API contracts
-* service integration
-* application routes
-* frontend behavior
-* build boundaries
-
-Testing must therefore reflect the architecture of the system.
 
 ---
 
 ## Decision 044 — Test Data Validation Explicitly
 
-**Status:** Implemented
+**Status:** Final
 
 ### Decision
 
-Data validation behavior must be tested explicitly.
+Data validation behavior is explicitly tested.
 
-Validation areas include:
+Coverage includes conditions such as:
 
 * required columns
 * expected types
 * null handling
-* negative energy values
+* invalid energy values
 * duplicate timestamps
 * timestamp ordering
-* hourly frequency
+* frequency
 * gaps
 * building identity
-* weather data assumptions
+* weather assumptions
 * target alignment
 
-### Reason
-
-Data errors can propagate into feature engineering and model performance.
-
-The system should detect invalid assumptions before they silently affect downstream components.
-
 ---
 
-## Decision 045 — Test Feature Construction for Temporal Correctness
+## Decision 045 — Test Temporal Feature Correctness
 
-**Status:** Implemented
+**Status:** Final
 
 ### Decision
 
-Feature construction must be tested for correctness and temporal integrity.
-
-Important checks include:
+Temporal feature construction is tested for:
 
 * lag correctness
-* rolling-window correctness
-* required history length
+* rolling-window behavior
+* required history
 * missing-history behavior
-* feature schema
-* prevention of future leakage
+* schema
+* temporal leakage prevention
 
 ### Reason
 
-Forecasting systems are especially vulnerable to temporal leakage and incorrect lag alignment.
-
-A feature implementation that accidentally uses future information can produce misleading evaluation results while appearing technically correct.
+Forecasting systems are particularly sensitive to temporal leakage and incorrect alignment.
 
 ---
 
-## Decision 046 — Test Model Behavior Independently of Model Quality
+## Decision 046 — Test Model Behavior Separately from Model Quality
 
-**Status:** Implemented
+**Status:** Final
 
 ### Decision
 
-Model behavior tests should verify that inference produces structurally valid results without treating test execution as proof of model quality.
+Tests verify structural model behavior without treating successful tests as evidence of predictive superiority.
 
-The tests cover behavior such as:
+Examples include:
 
 * prediction exists
 * prediction is finite
 * prediction is non-negative
-* prediction is deterministic where expected
-* model identity is returned
-* model version is returned
+* identity is returned
+* version is returned
 * serving mode is represented
-* baseline serving behaves correctly
-* model input contracts remain compatible
-
-### Reason
-
-Software correctness and predictive quality are different concerns.
-
-A model can produce technically valid predictions while still failing the baseline performance gate.
+* persistence behavior is correct
+* inference contracts remain valid
 
 ---
 
 ## Decision 047 — Test the Prediction API Boundary
 
-**Status:** Implemented
+**Status:** Final
 
 ### Decision
 
-The prediction API must be tested with both valid and invalid requests.
+The prediction API is tested with valid and invalid requests.
 
-The contract includes tests for:
+The contract covers conditions such as:
 
-* valid requests
 * insufficient history
 * duplicate observations
 * invalid energy values
 * invalid timestamps
-* invalid weather values
 * malformed payloads
-* health endpoint
-* readiness endpoint
+* health
+* readiness
 * prediction response structure
-
-### Reason
-
-The model service is a critical boundary between application data and ML logic.
-
-Invalid inputs should fail explicitly instead of producing ambiguous model behavior.
 
 ---
 
 ## Decision 048 — Test Application Integration Paths
 
-**Status:** Implemented
+**Status:** Final
 
 ### Decision
 
-Major application paths should be covered by integration-oriented verification.
+The application verifies the major paths connecting:
 
-Important paths include:
-
-* building data
-* historical consumption
-* forecast generation
-* model lifecycle information
-* anomaly information
-* monitoring information
+* buildings
+* consumption
+* forecasts
+* anomalies
+* Model Lab
+* monitoring
 
 ### Reason
 
-The platform's value comes from the complete chain rather than isolated services.
-
-A successful unit test suite is insufficient if the browser-to-API-to-model path is broken.
+The value of the platform comes from the complete system path rather than isolated services.
 
 ---
 
 ## Decision 049 — Use Automated CI Quality Gates
 
-**Status:** Implemented
+**Status:** Final
 
 ### Decision
 
-Continuous integration must automatically verify the repository's core software quality checks.
+Core repository quality checks are automated through GitHub Actions.
 
-The CI workflow includes appropriate checks for:
+The verification categories include:
 
 * Python tests
 * Python linting
-* API verification
-* web verification
-* builds
+* API type checking
+* API build
+* frontend linting
+* frontend build
 * relevant contracts
-
-### Reason
-
-Local verification alone cannot guarantee that future changes preserve repository health.
-
-CI provides a repeatable gate before changes are considered integrated.
 
 ---
 
-## Decision 050 — Treat Linting, Type Checking and Builds as Separate Signals
+## Decision 050 — Keep Linting, Type Checking and Builds Separate
 
-**Status:** Implemented
+**Status:** Final
 
 ### Decision
 
-Linting, type checking, and builds are treated as separate verification categories.
-
-The distinction is:
+Linting, type checking, and builds are separate verification signals.
 
 ```text
 Lint
  ↓
-Code-quality / static-rule verification
+Static code-quality verification
 
 Typecheck
  ↓
@@ -1449,76 +1251,60 @@ Type correctness
 
 Build
  ↓
-Compilation / production artifact verification
+Production artifact verification
 ```
 
-### Reason
-
-A successful build does not necessarily mean lint rules pass, and successful type checking does not necessarily mean code-quality rules pass.
-
-The CI pipeline therefore should not collapse these checks into a single assumption.
+A successful build does not replace the other checks.
 
 ---
 
-## Decision 051 — Keep CI Focused on Fast, Deterministic Checks
+## Decision 051 — Keep Normal CI Fast and Deterministic
 
-**Status:** Accepted
+**Status:** Final
 
 ### Decision
 
-CI should prioritize checks that are deterministic and practical to run for normal repository changes.
+Normal CI prioritizes deterministic checks that provide useful feedback without requiring expensive historical processing.
 
-These include:
+Normal verification includes:
 
-* unit tests
-* integration tests
+* tests
 * lint
 * type checking
-* core data validation
-* feature tests
-* API contracts
+* contracts
 * application builds
 
-### Reason
-
-CI should provide fast feedback without making every change depend on expensive historical processing or complete infrastructure rebuilds.
-
-Long-running tasks should remain scheduled, manual, or phase-specific where appropriate.
-
 ---
 
-## Decision 052 — Separate Scheduled / Extended Validation from Normal CI
+## Decision 052 — Keep Expensive Validation Outside Normal CI
 
-**Status:** Accepted
+**Status:** Final
 
 ### Decision
 
-Large or expensive validation tasks should not be required for every normal code change.
+The following are not required for every normal commit:
 
-Potential extended tasks include:
+* complete historical retraining
+* large-scale model evaluation
+* full Docker rebuild
+* large data ingestion
+* production cloud deployment
 
-* full historical data validation
-* extended model evaluation
-* large drift analysis
-* large integration suites
-* full Docker stack validation
-* expensive data processing
-
-### Reason
-
-The project should maintain strong verification without turning every development iteration into a long-running pipeline.
+This prevents normal development from becoming unnecessarily slow.
 
 ---
 
-## Decision 053 — Add Operational Monitoring to the ML Service
+# 6. Monitoring Decisions
 
-**Status:** Implemented
+## Decision 053 — Add Operational Prediction Monitoring
+
+**Status:** Final
 
 ### Decision
 
-The model service records operational prediction information so that prediction behavior can be observed after inference.
+The model service records operational prediction information.
 
-Monitoring records include information such as:
+Relevant information includes:
 
 ```text
 building_id
@@ -1532,141 +1318,97 @@ serving_mode
 
 ### Reason
 
-An inference service that only returns predictions cannot explain how its predictions are behaving over time.
-
-Recording prediction events establishes the foundation for:
-
-* performance monitoring
-* baseline comparison
-* degradation detection
-* future retraining eligibility
+Predictions must be observable after inference.
 
 ---
 
 ## Decision 054 — Keep Monitoring State Bounded
 
-**Status:** Implemented
+**Status:** Final
 
 ### Decision
 
-Current monitoring state is bounded rather than allowing unbounded in-memory growth.
-
-The performance-monitoring implementation uses a maximum observation capacity.
+The current monitoring implementation uses bounded in-memory state.
 
 ### Reason
 
-The current system is a local development platform and does not yet require a persistent telemetry database.
+The project is a local platform and does not require a persistent telemetry database for the completed scope.
 
-A bounded state model prevents uncontrolled memory growth while remaining simple and deterministic.
-
-Persistent operational storage can be introduced when the system genuinely requires long-term telemetry retention.
+Bounded state prevents uncontrolled memory growth.
 
 ---
 
-## Decision 055 — Distinguish Prediction Observations from Historical Dataset Rows
+## Decision 055 — Separate Monitoring Events from Historical Dataset Rows
 
-**Status:** Accepted
+**Status:** Final
 
 ### Decision
 
-A monitoring observation represents an operational prediction event and must not be confused with the historical training dataset.
+Operational monitoring observations are not treated as historical training rows.
 
-### Reason
-
-The development dataset contains:
-
-```text
-12 selected buildings
-210,528 processed rows
-```
-
-whereas monitoring observations are generated when the running prediction service receives requests.
-
-Therefore:
+The conceptual distinction is:
 
 ```text
 Historical Dataset Row
-≠
-Monitoring Prediction Observation
+        ≠
+Operational Prediction Observation
 ```
 
-Similarly:
+### Reason
 
-```text
-Building Count
-≠
-Monitoring Observation Count
-```
-
-This distinction is necessary when interpreting monitoring dashboards.
+The historical dataset and operational telemetry have different meanings and lifecycles.
 
 ---
 
 ## Decision 056 — Separate Prediction Observations from Performance Observations
 
-**Status:** Implemented
+**Status:** Final
 
 ### Decision
 
-A prediction observation is recorded when a prediction is produced.
+A prediction observation is created when a prediction is generated.
 
-A performance observation is created only when the corresponding actual outcome is available.
-
-The relationship is:
+A performance observation is created only when the actual outcome becomes available.
 
 ```text
 Prediction
-    ↓
+   ↓
 Prediction Observation
-    ↓
-Actual Outcome Available
-    ↓
+   ↓
+Actual Outcome
+   ↓
 Performance Observation
 ```
 
 ### Reason
 
-Prediction monitoring can begin immediately, but realized prediction error cannot be calculated without an actual outcome.
-
-This prevents the system from presenting predictions as if their accuracy were already known.
+Prediction accuracy cannot be calculated without the corresponding actual value.
 
 ---
 
-## Decision 057 — Use the Persistence Baseline in Performance Monitoring
+## Decision 057 — Use Persistence in Performance Monitoring
 
-**Status:** Implemented
+**Status:** Final
 
 ### Decision
 
-Performance monitoring compares the served prediction strategy against persistence when actual outcomes are available.
-
-The comparison uses the same observations and outcomes.
+Performance monitoring compares the served strategy against persistence when outcomes are available.
 
 ### Reason
 
-A model's performance should be interpreted relative to a meaningful reference.
-
-The monitoring layer therefore retains:
-
-```text
-Served Model
-      vs
-Persistence Baseline
-```
-
-This preserves the same baseline-aware principle used during model promotion.
+This maintains baseline awareness throughout the entire ML lifecycle.
 
 ---
 
 ## Decision 058 — Calculate Global and Per-Building Performance
 
-**Status:** Implemented
+**Status:** Final
 
 ### Decision
 
-Performance monitoring should support both aggregate and per-building metrics.
+Performance monitoring supports both aggregate and building-level analysis.
 
-The current metrics include:
+Metrics include:
 
 * MAE
 * RMSE
@@ -1677,33 +1419,25 @@ The current metrics include:
 
 ### Reason
 
-Aggregate metrics can hide building-level differences.
-
-A multi-building energy platform therefore needs the ability to determine whether performance degradation is broad or concentrated in particular buildings.
+Aggregate performance can hide localized degradation.
 
 ---
 
-## Decision 059 — Require Sufficient Data Before Declaring Degradation
+## Decision 059 — Require Sufficient Observations Before Declaring Degradation
 
-**Status:** Implemented
+**Status:** Final
 
 ### Decision
 
-Model degradation cannot be declared from a small number of performance observations.
+The system does not declare degradation from a small number of observations.
 
-The current configuration uses:
+Current configuration:
 
 ```text
-Recent window size:          30 observations
-Sustained windows required:  3
-Minimum observations:       90
+Recent window size:       30 observations
+Sustained windows:         3
+Minimum observations:     90
 ```
-
-### Reason
-
-Short-lived fluctuations should not automatically become lifecycle events.
-
-The detector therefore requires enough observations to evaluate three sustained windows.
 
 Fewer than 90 observations results in:
 
@@ -1711,19 +1445,15 @@ Fewer than 90 observations results in:
 insufficient_data
 ```
 
-rather than a degradation conclusion.
-
 ---
 
-## Decision 060 — Require Sustained Degradation Across Multiple Windows
+## Decision 060 — Require Sustained Degradation
 
-**Status:** Implemented
+**Status:** Final
 
 ### Decision
 
-A degraded state requires the configured degradation condition to persist across all required performance windows.
-
-The current structure is:
+A degraded state requires the degradation condition to persist across all required performance windows.
 
 ```text
 30 observations
@@ -1740,294 +1470,226 @@ Window 3
 
 90 observations
       ↓
-Sustained degradation evaluation
+Sustained Degradation
 ```
 
 ### Reason
 
-A single bad window may represent noise, a temporary event, or data quality problems.
-
-Sustained evidence is more appropriate for a future lifecycle decision.
+A single poor prediction or short-lived performance fluctuation is insufficient evidence for lifecycle action.
 
 ---
 
-## Decision 061 — Use Relative Performance Degradation Thresholds
+## Decision 061 — Use a Relative Degradation Threshold
 
-**Status:** Implemented
+**Status:** Final
 
 ### Decision
 
-The current degradation detector uses a relative threshold of:
-
-```text
-10%
-```
-
-for evaluating degradation against the relevant reference performance.
+The current degradation detector uses a 10% relative threshold.
 
 ### Reason
 
-Absolute error values vary across buildings and consumption scales.
-
-A relative threshold provides a more interpretable basis for detecting deterioration across heterogeneous buildings.
+Relative performance deterioration is more interpretable across buildings with different energy-consumption scales.
 
 ---
 
-## Decision 062 — Introduce Reference-Based Drift Monitoring
+## Decision 062 — Use Reference-Based Drift Monitoring
 
-**Status:** Implemented
+**Status:** Final
 
 ### Decision
 
-Feature drift is evaluated by comparing current observations against reference feature distributions.
-
-The conceptual relationship is:
+Current feature distributions are compared against a reference feature profile.
 
 ```text
-Reference Feature Distribution
-             +
-Current Feature Distribution
-             ↓
-        PSI Analysis
-             ↓
-      Drift Monitoring
+Reference Distribution
+        +
+Current Distribution
+        ↓
+Drift Measurement
 ```
 
 ### Reason
 
-Changes in incoming feature distributions can indicate that the environment seen by the model differs from the development reference population.
-
-Drift is therefore useful as an operational signal.
+Incoming data can differ from the development reference population.
 
 ---
 
-## Decision 063 — Use PSI for Current Drift Measurement
+## Decision 063 — Use PSI for Current Drift Detection
 
-**Status:** Implemented
+**Status:** Final
 
 ### Decision
 
 Population Stability Index (PSI) is used for the current feature-drift implementation.
 
-The current thresholds are:
+Current interpretation:
 
 ```text
-Healthy:  PSI < 0.10
-Warning:  0.10 <= PSI < 0.25
-Critical: PSI >= 0.25
+Healthy:   PSI < 0.10
+
+Warning:   0.10 <= PSI < 0.25
+
+Critical:  PSI >= 0.25
 ```
-
-### Reason
-
-PSI provides a compact distribution-comparison measure suitable for the current numerical feature monitoring layer.
-
-The implementation uses reference-derived quantile bins and handles finite-value filtering explicitly.
 
 ---
 
-## Decision 064 — Require Minimum Drift Sample Counts
+## Decision 064 — Require Minimum Drift Samples
 
-**Status:** Implemented
+**Status:** Final
 
 ### Decision
 
-A minimum of 30 current observations is required before a feature drift result becomes evaluable.
+At least 30 observations are required before a feature drift evaluation is treated as meaningful.
 
 ### Reason
 
-A single prediction contains only one current value for a feature.
-
-Treating such a value as a meaningful distribution change would create false signals.
-
-The system therefore returns:
-
-```text
-insufficient_data
-```
-
-when the current sample count is below the configured minimum.
+A single observation cannot establish a distribution shift.
 
 ---
 
-## Decision 065 — Treat Missing Reference Data Explicitly
+## Decision 065 — Distinguish Missing Reference Data from No Drift
 
-**Status:** Implemented
+**Status:** Final
 
 ### Decision
 
-Drift monitoring must distinguish between:
+The system distinguishes:
 
 ```text
-reference unavailable
+Reference Unavailable
 ```
 
-and:
+from:
 
 ```text
-no drift detected
+No Significant Drift
 ```
 
 ### Reason
 
-The absence of a reference distribution is an infrastructure/data configuration condition, not evidence that the feature distribution is stable.
-
-The monitoring result therefore records whether the reference profile is available.
+Missing reference data is not evidence that the current distribution is stable.
 
 ---
 
 ## Decision 066 — Handle Optional Weather Fields Safely
 
-**Status:** Implemented
+**Status:** Final
 
 ### Decision
 
-Optional weather fields must not cause monitoring instrumentation to fail when they are absent.
+Missing optional weather fields must not cause monitoring instrumentation to break a valid prediction request.
 
 ### Reason
 
-Prediction requests can legitimately omit optional weather fields.
+Monitoring is secondary to the primary prediction path.
 
-Monitoring must not turn a valid prediction request into a server error simply because an optional field is `None`.
-
-The monitoring feature extraction therefore adds optional weather features only when values are present.
-
-This preserves the primary prediction path:
+The intended order is:
 
 ```text
-Valid Prediction Request
-        ↓
+Valid Request
+   ↓
 Prediction
-        ↓
-Monitoring Instrumentation
+   ↓
+Monitoring
 ```
-
-without allowing optional monitoring metadata to break inference.
 
 ---
 
 ## Decision 067 — Keep Drift Separate from Retraining
 
-**Status:** Accepted
+**Status:** Final
 
 ### Decision
 
-Feature drift does not independently trigger retraining.
+Drift does not independently trigger retraining.
 
 ### Reason
 
-A distribution shift does not necessarily mean that predictive performance has degraded.
+Distribution shift does not necessarily mean predictive performance has become unacceptable.
 
-The intended lifecycle is:
+The lifecycle is:
 
 ```text
-Feature Drift
-      ↓
-Monitoring Signal
-      ↓
-Combine with Performance
-      ↓
-Evaluate Sustained Degradation
-      ↓
+Drift
+ ↓
+Supporting Evidence
+ ↓
+Performance Evaluation
+ ↓
+Sustained Degradation
+ ↓
 Retraining Eligibility
 ```
-
-Drift is supporting evidence rather than an automatic retraining command.
 
 ---
 
 ## Decision 068 — Keep Data Quality Separate from Model Degradation
 
-**Status:** Accepted
+**Status:** Final
 
 ### Decision
 
-Poor prediction performance must be interpreted alongside data quality.
-
-The intended structure is:
-
-```text
-Poor Performance
-      ↓
-Check Data Quality
-      │
-      ├── Critical data-quality issue
-      │        ↓
-      │   Investigate data
-      │
-      └── Data quality acceptable
-               ↓
-        Evaluate degradation
-```
+Poor performance must be interpreted alongside data quality.
 
 ### Reason
 
-Invalid, incomplete, or malformed incoming data can cause poor predictions without indicating that the learned model itself has degraded.
-
-Data-quality signals therefore provide necessary context for performance monitoring.
+Invalid or incomplete inputs can produce poor predictions without indicating model degradation.
 
 ---
 
 ## Decision 069 — Monitor Service Health Separately from Model Quality
 
-**Status:** Implemented
+**Status:** Final
 
 ### Decision
 
-Service availability and request behavior are treated as separate monitoring concerns from predictive performance.
+Service health and model quality are separate monitoring dimensions.
 
-Service-health monitoring covers operational information such as:
+Service health includes:
 
 * request behavior
 * errors
 * latency
 * health state
-* readiness state
+* readiness
 * dependency availability
 
 ### Reason
 
-A model can be statistically healthy while the service is unavailable.
-
-Conversely, the service can be healthy while the model's predictive performance deteriorates.
-
-These are separate failure modes and should remain separately observable.
+A service can be healthy while a model performs poorly, and a model can be healthy while the service is unavailable.
 
 ---
 
-## Decision 070 — Do Not Treat Drift as a Failure by Itself
+## Decision 070 — Do Not Treat Drift as Model Failure by Itself
 
-**Status:** Accepted
+**Status:** Final
 
 ### Decision
 
-A drift signal should not automatically be interpreted as model failure.
+Drift alone is not interpreted as model failure.
 
-### Reason
-
-Distribution change can occur without meaningful degradation in prediction quality.
-
-The monitoring architecture therefore distinguishes:
+The system separately tracks:
 
 ```text
-Data Drift
-Model Performance
 Data Quality
+Drift
+Performance
 Service Health
 ```
 
-rather than collapsing them into a single failure state.
-
 ---
 
-## Decision 071 — Use Explicit Monitoring Severity States
+## Decision 071 — Use Explicit Monitoring States
 
-**Status:** Implemented
+**Status:** Final
 
 ### Decision
 
-Monitoring signals use explicit states rather than vague textual warnings.
+Monitoring uses explicit states where applicable.
 
-The general state model includes:
+Examples include:
 
 ```text
 Healthy
@@ -2039,134 +1701,113 @@ Reference Unavailable
 
 ### Reason
 
-Explicit states make monitoring easier to display, test, aggregate, and consume programmatically.
-
-They also allow later lifecycle logic to distinguish actionable conditions from incomplete evidence.
+Explicit states are easier to test, display, aggregate, and consume programmatically.
 
 ---
 
-## Decision 072 — Keep Automatic Retraining Out of Phase 5
+## Decision 072 — Separate Monitoring from Lifecycle Action
 
-**Status:** Accepted
+**Status:** Final
 
 ### Decision
 
-Phase 5 must not automatically retrain models.
+Monitoring produces evidence; lifecycle logic decides whether that evidence is sufficient for retraining.
 
-### Reason
-
-Monitoring and retraining are separate lifecycle responsibilities.
-
-Phase 5 establishes the evidence required for a future retraining decision:
+The architecture is:
 
 ```text
-Observations
-+
-Performance
-+
-Drift
-+
-Data Quality
-+
-Service State
+Prediction
+   ↓
+Observation
+   ↓
+Metrics
+   ↓
+Signals
+   ↓
+Sustained Evidence
+   ↓
+Retraining Eligibility
 ```
 
-but does not automatically execute:
-
-```text
-Training
-→
-Evaluation
-→
-Promotion
-```
-
-That workflow belongs to Phase 6.
+Monitoring does not directly train, promote, or replace models.
 
 ---
 
-## Decision 073 — Establish a Structured Retraining Eligibility Contract
+# 7. Retraining Eligibility Decisions
 
-**Status:** Implemented as Phase 5 groundwork
+## Decision 073 — Use an Explicit Retraining Eligibility Contract
+
+**Status:** Final — Implemented
 
 ### Decision
 
-Phase 5 establishes the information required to determine whether a future model is eligible for retraining.
+Retraining eligibility is evaluated through an explicit structured contract.
 
-The intended evidence includes:
+The evaluator considers:
 
 * sufficient observations
 * sustained performance degradation
-* supporting drift evidence where relevant
-* learned model underperformance relative to persistence
-* acceptable data quality
-* operational service state
-
-The future structured state should contain:
-
-* model identity
-* model version
-* serving mode
-* performance window
-* sample count
-* current performance
-* reference performance
-* persistence-baseline performance
+* persistence comparison
 * drift state
 * data-quality state
-* service-health state
-* degradation state
-* reasons
+* service state
+* current model identity
 
-### Reason
-
-Retraining should be based on explicit evidence rather than a single metric or arbitrary trigger.
-
----
-
-## Decision 074 — Use a State-Based Monitoring-to-Retraining Flow
-
-**Status:** Accepted
-
-### Decision
-
-The future lifecycle should progress through explicit evidence states:
+The resulting decision includes:
 
 ```text
-NORMAL
-   ↓
-SIGNALS
-   ↓
-CORRELATE
-   ↓
-SUFFICIENT EVIDENCE
-   ↓
-RETRAINING ELIGIBLE
-   ↓
-Phase 6
+retraining_eligible
+status
+model
+evidence
+metrics
+reasons
+blocking_reasons
 ```
 
 ### Reason
 
-A single monitoring event should not immediately cause a lifecycle transition.
-
-State progression allows the system to accumulate evidence and distinguish transient signals from sustained problems.
+Retraining must be evidence-based rather than triggered by one isolated signal.
 
 ---
 
-## Decision 075 — Preserve the Current Serving Model Until a Candidate Passes Evaluation
+## Decision 074 — Use State-Based Monitoring-to-Retraining Logic
 
-**Status:** Accepted
+**Status:** Final — Implemented
 
 ### Decision
 
-Monitoring or degradation detection must not directly replace the currently served model.
+The completed lifecycle separates:
+
+```text
+Normal
+ ↓
+Monitoring Signals
+ ↓
+Evidence Accumulation
+ ↓
+Sustained Degradation
+ ↓
+Retraining Eligibility
+ ↓
+Candidate Training
+```
 
 ### Reason
 
-The production serving strategy must remain stable until a replacement candidate passes the established evaluation and baseline gates.
+Transient events should not automatically become retraining events.
 
-The future lifecycle remains:
+---
+
+## Decision 075 — Preserve the Current Serving Strategy Until a Candidate Qualifies
+
+**Status:** Final — Implemented
+
+### Decision
+
+Monitoring and retraining eligibility do not directly replace the serving strategy.
+
+The lifecycle is:
 
 ```text
 Current Serving Strategy
@@ -2177,192 +1818,143 @@ Retraining Eligibility
         ↓
 Candidate Training
         ↓
-Evaluation
+Candidate Evaluation
         ↓
-Baseline / Production Comparison
+Promotion Decision
         ↓
-Promotion
-        ↓
-New Serving Strategy
+New Production
 ```
-
-This preserves controlled model lifecycle management.
-
----
-
-## Decision 076 — Make Monitoring Observable Through the Application
-
-**Status:** Implemented
-
-### Decision
-
-Monitoring information should be exposed through the service/API boundary and represented in the application dashboard.
-
-The monitoring surface should make important operational information visible, including:
-
-* current serving state
-* model identity
-* monitoring observations
-* performance state
-* drift state
-* data-quality state
-* service state
-* alerts/signals where available
 
 ### Reason
 
-Observability should be part of the product rather than remaining hidden inside service logs.
+Production state must remain stable until a replacement candidate satisfies the required gates.
 
 ---
 
-## Decision 077 — Keep Monitoring Secondary to the Forecasting Path
+## Decision 076 — Expose Monitoring Through the Application
 
-**Status:** Accepted
+**Status:** Final — Implemented
 
 ### Decision
 
-Monitoring must not compromise the primary forecasting workflow.
+Monitoring information is exposed through the service/API boundaries and displayed in the Monitoring interface.
 
 ### Reason
 
-Forecast generation is the core product capability.
-
-Monitoring is an observability layer around that capability.
-
-Therefore:
-
-```text
-Prediction
-    ↓
-Primary functionality
-    ↓
-Monitoring
-```
-
-must be implemented so that monitoring failures do not unnecessarily break valid prediction requests.
-
-This principle directly informed the handling of optional weather fields in monitoring instrumentation.
+Operational observability is part of the product rather than hidden only inside logs.
 
 ---
 
-## Decision 078 — Verify the Dockerized Runtime After Significant Service Changes
+## Decision 077 — Keep Monitoring Secondary to the Prediction Path
 
-**Status:** Implemented
+**Status:** Final
 
 ### Decision
 
-Changes to the model-service runtime should be verified in the Dockerized environment when they affect runtime behavior.
+Monitoring instrumentation must not unnecessarily break valid inference.
 
 ### Reason
 
-The local virtual environment and Docker environment have different dependency and filesystem boundaries.
+Forecast generation is the primary application capability.
 
-The project therefore verifies the actual Dockerized stack rather than assuming that local tests alone prove container correctness.
-
-The current local stack consists of:
-
-```text
-Web
-API
-Model Service
-MLflow
-```
-
-and the services have been verified running together through Docker Compose.
+Monitoring exists around that capability.
 
 ---
 
-## Decision 079 — Rebuild Only the Changed Docker Service When Possible
+# 8. Docker and Runtime Decisions
 
-**Status:** Accepted
+## Decision 078 — Verify Significant Runtime Changes in Docker
+
+**Status:** Final
 
 ### Decision
 
-When a single service changes, rebuild that service rather than unnecessarily rebuilding the complete stack.
+Runtime-affecting model-service changes must be verified in the Dockerized environment.
 
-For example:
+### Reason
 
-```text
-docker compose build model-service
-```
+The local Python environment and Docker environment have different dependency and filesystem boundaries.
+
+---
+
+## Decision 079 — Rebuild Only Required Docker Services
+
+**Status:** Final
+
+### Decision
+
+When a change affects one service, rebuild that service rather than unnecessarily rebuilding the complete stack.
 
 ### Reason
 
 The model-service image can be expensive to rebuild.
 
-Rebuilding only the affected service:
-
-* reduces build time
-* reduces unnecessary network activity
-* reduces dependency-resolution exposure
-* preserves already-valid images for unchanged services
-
-A full stack rebuild remains appropriate when multiple image definitions or shared build inputs require it.
+Model promotion, rejection, and rollback through MLflow do not inherently require a Docker image rebuild because registry state is separate from the container image.
 
 ---
 
 ## Decision 080 — Treat Dependency Resolution as a Reproducibility Concern
 
-**Status:** Accepted
+**Status:** Final
 
 ### Decision
 
-Container dependency failures must be treated as reproducibility/build-system issues rather than automatically as application logic failures.
+Dependency-resolution failures are treated separately from application-logic failures.
 
 ### Reason
 
-The Python model service depends on a set of version ranges.
+The Docker environment resolves dependencies independently of the local development environment.
 
-Dependency resolution can therefore fail even when the application code and local environment are working correctly.
-
-The project should keep dependency constraints explicit and investigate container resolution failures independently from prediction logic.
+Dependency constraints therefore remain part of the reproducibility boundary.
 
 ---
 
-## Decision 081 — Keep Phase 5 Testing Evidence Explicit
+## Decision 081 — Preserve Explicit Verification Evidence
 
-**Status:** Implemented
+**Status:** Final
 
 ### Decision
 
-Phase 5 completion must be supported by explicit verification evidence rather than assuming that successful implementation implies correctness.
+Project completion is supported by explicit test, lint, type-check, and build evidence.
 
-The completed verification categories include:
+Final verification included:
 
 ```text
-Python tests
-Python lint
+pytest
+Ruff
 API typecheck
 API build
 Web lint
 Web build
 ```
 
-The full Python test suite currently reports:
+The final Python test suite completed with:
 
 ```text
-47 passed
+64 passed, 2 warnings
 ```
 
-### Reason
+Ruff completed successfully.
 
-A project intended to demonstrate engineering maturity should be able to show that its major software layers were actually verified.
+The API typecheck completed successfully.
+
+The API production build completed successfully.
+
+The frontend lint completed successfully.
+
+The frontend production build completed successfully.
 
 ---
 
-## Decision 082 — Keep the Current Monitoring Architecture Local and Simple
+## Decision 082 — Keep Monitoring Infrastructure Local and Lightweight
 
-**Status:** Accepted
+**Status:** Final
 
 ### Decision
 
-Phase 5 monitoring remains local and lightweight rather than introducing a dedicated observability platform.
+The monitoring architecture remains local and lightweight.
 
-### Reason
-
-The project is still designed to run on a normal development laptop.
-
-The current architecture provides meaningful monitoring concepts without requiring:
+It does not require:
 
 * Kubernetes
 * distributed tracing infrastructure
@@ -2371,19 +1963,23 @@ The current architecture provides meaningful monitoring concepts without requiri
 * message queues
 * streaming infrastructure
 
-These can be introduced later if operational requirements justify them.
+### Reason
+
+The completed platform is designed to demonstrate the MLOps lifecycle on a normal development laptop.
 
 ---
 
-## Decision 083 — Preserve the Historical Dataset as the Reference Development Population
+# 9. Data and Lifecycle Boundaries
 
-**Status:** Accepted
+## Decision 083 — Preserve the Historical Development Population
+
+**Status:** Final
 
 ### Decision
 
-The selected BDG2 development population remains the reference foundation for the current project.
+The selected BDG2 development population remains the reference foundation.
 
-The current scope is:
+Current scope:
 
 ```text
 12 buildings
@@ -2394,7 +1990,7 @@ The current scope is:
 
 ### Reason
 
-The project requires a stable development population for:
+A stable reference population is required for:
 
 * feature engineering
 * model evaluation
@@ -2402,17 +1998,15 @@ The project requires a stable development population for:
 * reference distributions
 * reproducibility
 
-The historical reference population should not be silently changed while interpreting model or monitoring behavior.
-
 ---
 
-## Decision 084 — Keep Historical Data, Operational Monitoring Data, and Model Metadata Separate
+## Decision 084 — Keep Historical Data, Monitoring Data, and MLflow Metadata Separate
 
-**Status:** Accepted
+**Status:** Final
 
 ### Decision
 
-The platform maintains separate conceptual boundaries for:
+The platform maintains separate conceptual data classes:
 
 ```text
 Historical Analytical Data
@@ -2422,9 +2016,7 @@ Model Lifecycle Metadata
 
 ### Reason
 
-These data classes have different purposes and retention requirements.
-
-The separation is:
+These classes serve different purposes.
 
 ```text
 Historical Data
@@ -2440,13 +2032,11 @@ MLflow Metadata
 Model Lifecycle
 ```
 
-This prevents monitoring state from being confused with training data and prevents model registry state from being treated as part of the raw dataset.
-
 ---
 
-## Decision 085 — Keep the Persistence Baseline First-Class Across the Lifecycle
+## Decision 085 — Keep Persistence First-Class Across the Entire Lifecycle
 
-**Status:** Implemented
+**Status:** Final
 
 ### Decision
 
@@ -2457,93 +2047,74 @@ Evaluation
 Promotion
 Serving
 Performance Monitoring
-Future Retraining Eligibility
+Retraining Eligibility
+Candidate Evaluation
 ```
 
 ### Reason
 
-The baseline is not only a Phase 1 experiment.
+Persistence is not merely a Phase 1 benchmark.
 
-It provides a consistent reference throughout the model lifecycle.
-
-The system should therefore continue asking:
-
-```text
-Is the learned model actually better than persistence?
-```
-
-rather than assuming that learned-model deployment is inherently preferable.
+It is the operational reference against which learned-model value is judged throughout the lifecycle.
 
 ---
 
-## Decision 086 — Keep Model Lab and Monitoring as Separate Observability Surfaces
+## Decision 086 — Keep Model Lab and Monitoring Separate
 
-**Status:** Implemented
+**Status:** Final
 
 ### Decision
 
-Model Lab and Monitoring serve different observability purposes.
+Model Lab and Monitoring remain distinct observability surfaces.
 
 ```text
 Model Lab
     ↓
-Model lifecycle / registry / experiments
+Experiments / Registry / Lifecycle
 
 Monitoring
     ↓
-Runtime / prediction / drift / performance / service state
+Runtime / Predictions / Drift / Performance / Service Health
 ```
 
 ### Reason
 
-Model lifecycle information and operational model behavior are related but distinct.
-
-Keeping the surfaces separate avoids turning one dashboard into an overloaded representation of unrelated concerns.
+Model lifecycle information and runtime behavior are related but distinct concerns.
 
 ---
 
-## Decision 087 — Preserve Explicit Historical Limitations in Documentation
+## Decision 087 — Document the Historical-Data Limitation Explicitly
 
-**Status:** Accepted
+**Status:** Final
 
 ### Decision
 
-Documentation must explicitly state that the current system uses historical BDG2 data and is not a live building telemetry platform.
+Documentation must explicitly state that the current system uses historical BDG2 data and does not represent a live building telemetry deployment.
 
 ### Reason
 
-The application demonstrates an operational ML architecture, but its current data source ends in 2017.
+The data source ends in 2017.
 
-It would be misleading to describe the current forecast as live telemetry-driven forecasting.
-
-The project therefore distinguishes:
-
-```text
-Current:
-Historical inference demonstration
-
-Future:
-Live operational telemetry
-```
+The project demonstrates the architecture of operational ML rather than claiming access to current live building telemetry.
 
 ---
 
-## Decision 088 — Do Not Introduce Production-Scale Infrastructure Prematurely
+## Decision 088 — Do Not Add Production-Scale Infrastructure Without a Requirement
 
-**Status:** Accepted
+**Status:** Final
 
 ### Decision
 
-The platform should not introduce production-scale infrastructure merely to make the architecture appear more advanced.
+The completed architecture does not add infrastructure merely to make the project appear more advanced.
 
-Examples include:
+Examples intentionally excluded:
 
 * Kubernetes
-* cloud-native orchestration
-* streaming systems
+* distributed streaming
 * distributed databases
 * GPU infrastructure
 * LLM infrastructure
+* unnecessary cloud infrastructure
 
 ### Reason
 
@@ -2559,222 +2130,117 @@ Clear Architecture
 Testability
 +
 Observability
-```
-
-over unnecessary infrastructure complexity.
-
-Infrastructure should be introduced only when there is a genuine system requirement.
-
----
-
-# Current Architecture Decision Summary
-
-The decisions through Phase 5 establish the following architecture:
-
-```text
-                         ┌──────────────────────┐
-                         │      Next.js         │
-                         │       React          │
-                         └──────────┬───────────┘
-                                    │
-                                    ▼
-                         ┌──────────────────────┐
-                         │      Express         │
-                         │   Application API    │
-                         └──────────┬───────────┘
-                                    │
-                                    ▼
-                         ┌──────────────────────┐
-                         │       FastAPI        │
-                         │    ML Inference      │
-                         └──────────┬───────────┘
-                                    │
-                         ┌──────────┴───────────┐
-                         │                      │
-                         ▼                      ▼
-                  Persistence              MLflow
-                   Baseline                  │
-                                             ▼
-                                      Model Registry
-                                             │
-                                             ▼
-                                      Evaluation Gate
-                                             │
-                                             ▼
-                                      Promotion Decision
-                                             │
-                                             ▼
-                                        Model Serving
-                                             │
-                                             ▼
-                                        Monitoring
-                                    ┌────────┼────────┐
-                                    │        │        │
-                                    ▼        ▼        ▼
-                                  Drift  Performance  Service
-                                    │        │        │
-                                    └────────┼────────┘
-                                             │
-                                             ▼
-                                      Future Eligibility
-                                             │
-                                             ▼
-                                      Phase 6 Retraining
-```
-
-The architecture remains intentionally simple enough to run locally while providing explicit boundaries for future MLOps capabilities.
-
----
-
-# Current Phase 5 Decision State
-
-Phase 5 establishes:
-
-```text
-Testing
-  ↓
-Automated Verification
-  ↓
-CI
-  ↓
-Operational Monitoring
-  ↓
-Data Quality
-  ↓
-Drift Detection
-  ↓
-Performance Monitoring
-  ↓
-Service Health
-  ↓
-Sustained Degradation Detection
-  ↓
-Retraining Eligibility Evidence
-```
-
-The system does not automatically execute:
-
-```text
-Retraining
-```
-
-or:
-
-```text
-Production Promotion
-```
-
-as part of Phase 5.
-
-Those actions remain controlled lifecycle decisions for Phase 6.
-
----
-
-# Phase 5 Completion Principles
-
-The completed Phase 5 architecture follows these principles:
-
-```text
-1. Test before trusting
-2. Validate data before interpreting model behavior
-3. Separate software correctness from model quality
-4. Compare learned models with a meaningful baseline
-5. Monitor data as well as predictions
-6. Require sufficient observations before drawing conclusions
-7. Require sustained degradation rather than single-event triggers
-8. Treat drift as supporting evidence
-9. Treat data quality separately from model degradation
-10. Keep service health separate from predictive performance
-11. Never allow monitoring instrumentation to unnecessarily break inference
-12. Do not automatically retrain in Phase 5
-13. Do not automatically replace the serving strategy
-14. Keep the platform local and reproducible
++
+Controlled Lifecycle
 ```
 
 ---
 
-# Future Decisions — Phase 6
+# 10. Phase 6 Final Lifecycle Decisions
 
-## Decision 089 — Controlled Retraining Must Begin from Explicit Eligibility
+## Decision 089 — Retraining Begins Only from Explicit Eligibility
 
-**Status:** Planned
+**Status:** Final — Implemented
 
 ### Decision
 
-Phase 6 retraining should begin only when the Phase 5 monitoring layer produces sufficient evidence for retraining eligibility.
+Controlled retraining begins from an explicit retraining-eligibility evaluation.
+
+Retraining eligibility requires evidence rather than a single trigger.
+
+The evaluator considers:
+
+```text
+Sufficient observations
++
+Sustained degradation
++
+Baseline comparison
++
+Acceptable data quality
++
+Operational service state
++
+Supporting drift evidence
+```
 
 ### Reason
 
-Training should not be triggered merely because:
-
-* drift exists
-* one prediction is inaccurate
-* one building behaves differently
-* a temporary data-quality issue occurs
-
-The future trigger should combine multiple signals.
+Retraining should be a controlled lifecycle action.
 
 ---
 
-## Decision 090 — Require Sufficient Observations Before Retraining
+## Decision 090 — Require Sufficient Observations Before Candidate Training
 
-**Status:** Planned
+**Status:** Final — Implemented
 
 ### Decision
 
-A future retraining workflow must require a sufficient number of valid observations before beginning candidate training.
+Candidate retraining requires sufficient performance observations.
 
 ### Reason
 
-Training from an insufficient or unrepresentative operational window could produce a candidate that reflects temporary noise rather than meaningful system change.
+A candidate trained from too little operational evidence could reflect temporary noise rather than a meaningful change in the underlying system.
 
 ---
 
-## Decision 091 — Require Sustained Performance Degradation Before Retraining
+## Decision 091 — Require Sustained Performance Degradation
 
-**Status:** Planned
+**Status:** Final — Implemented
 
 ### Decision
 
-Future retraining eligibility should require sustained performance degradation across the configured evaluation windows.
+Retraining eligibility requires sustained performance degradation rather than a single poor observation.
 
 ### Reason
 
-The monitoring layer already distinguishes transient performance variation from sustained degradation.
+The degradation detector already establishes the required evidence across multiple windows.
 
-The retraining workflow should consume that distinction rather than bypassing it.
+Retraining consumes this evidence rather than bypassing it.
 
 ---
 
-## Decision 092 — Use Drift as Supporting Evidence for Retraining
+## Decision 092 — Use Drift as Supporting Evidence
 
-**Status:** Planned
+**Status:** Final — Implemented
 
 ### Decision
 
-Feature drift may support a retraining decision but should not independently trigger retraining.
+Feature drift can support a retraining decision but cannot independently trigger retraining.
 
 ### Reason
 
-The presence of drift does not establish that model performance has become unacceptable.
+Distribution change does not prove predictive degradation.
 
-Retraining should be based primarily on demonstrated predictive degradation with contextual evidence from drift and data quality.
+The lifecycle therefore distinguishes:
+
+```text
+Drift
+```
+
+from:
+
+```text
+Performance Degradation
+```
+
+and combines them as contextual evidence.
 
 ---
 
-## Decision 093 — Require Baseline-Aware Retraining Evaluation
+## Decision 093 — Require Baseline-Aware Evaluation After Retraining
 
-**Status:** Planned
+**Status:** Final — Implemented
 
 ### Decision
 
-Any retrained candidate must again be compared against the persistence baseline before promotion.
+Every retrained candidate must be evaluated against persistence before it can qualify for promotion.
 
 ### Reason
 
-Retraining should not bypass the original model-quality principle.
+Retraining cannot bypass the project's original model-quality principle.
 
-The future lifecycle remains:
+The lifecycle is:
 
 ```text
 Candidate
@@ -2784,39 +2250,47 @@ Evaluation
 Persistence Comparison
    ↓
 Promotion Gate
-   ↓
-Serving
 ```
 
 ---
 
-## Decision 094 — Do Not Allow Retraining to Overwrite Production Directly
+## Decision 094 — Never Allow Retraining to Overwrite Production Directly
 
-**Status:** Planned
+**Status:** Final — Implemented
 
 ### Decision
 
-A retrained model must first become an evaluated candidate.
+A retrained model first becomes a candidate.
 
-It must not directly overwrite the current production serving state.
+It does not directly overwrite production.
 
 ### Reason
 
-Training and deployment are separate lifecycle decisions.
+Training and deployment are separate decisions.
 
-This preserves the controlled model-management architecture established in Phase 4.
+The architecture therefore maintains:
+
+```text
+Training
+   ↓
+Candidate
+   ↓
+Evaluation
+   ↓
+Promotion
+   ↓
+Production
+```
 
 ---
 
-## Decision 095 — Preserve Existing Service Boundaries During Future Expansion
+## Decision 095 — Preserve Existing Service Boundaries
 
-**Status:** Planned
+**Status:** Final — Implemented
 
 ### Decision
 
-Future infrastructure should preserve the current service boundaries unless there is a clear engineering reason to change them.
-
-The current boundaries are:
+Phase 6 preserves the existing service boundaries:
 
 ```text
 Next.js
@@ -2825,26 +2299,697 @@ Express
    ↓
 FastAPI
    ↓
-MLflow / Model Serving
+MLflow / Model Registry
 ```
 
 ### Reason
 
-The current separation provides a stable foundation for:
+Retraining and lifecycle management extend the existing architecture rather than replacing it.
 
-* CI
-* monitoring
-* drift detection
-* retraining
-* deployment
-
-Future additions should extend these boundaries rather than introduce unnecessary architectural rewrites.
+This avoids unnecessary architectural rewrites and preserves the established application/inference boundary.
 
 ---
 
-# Final Engineering Principle
+# 11. Phase 6 Production-Data Simulation Decisions
 
-The project follows one overarching rule:
+## Decision 096 — Use Controlled Production-Data Simulation
+
+**Status:** Final — Implemented
+
+### Decision
+
+Because the project does not have live production telemetry, Phase 6 uses deterministic simulated production data derived from the processed historical dataset.
+
+### Configuration
+
+```text
+Buildings: 12
+Observations per building: 168
+Total observations: 2016
+Random seed: 42
+```
+
+Two scenarios are generated:
+
+```text
+Normal Production Scenario
+Shifted Production Scenario
+```
+
+### Reason
+
+This allows the lifecycle to be exercised without falsely representing historical data as live production telemetry.
+
+---
+
+## Decision 097 — Use Controlled Distribution Shift
+
+**Status:** Final — Implemented
+
+### Decision
+
+The shifted scenario introduces deterministic changes to selected environmental and energy variables.
+
+The shifted scenario includes:
+
+* increased air temperature
+* increased dew temperature
+* increased wind speed
+* increased target energy consumption
+
+### Reason
+
+A controlled shift provides a reproducible environment for testing monitoring and candidate-retraining behavior.
+
+---
+
+## Decision 098 — Preserve Persistence Strength During Simulation
+
+**Status:** Final — Implemented
+
+### Decision
+
+The production-data simulation intentionally preserves a strong persistence relationship rather than altering the simulation to guarantee learned-model superiority.
+
+### Reason
+
+The purpose of the lifecycle demonstration is to evaluate candidates honestly.
+
+The simulation must not be engineered solely to force a learned model into production.
+
+The baseline remains meaningful even under the shifted scenario.
+
+---
+
+# 12. Candidate Training Decisions
+
+## Decision 099 — Train Candidates from the Retraining Workflow
+
+**Status:** Final — Implemented
+
+### Decision
+
+Phase 6 candidate training is implemented through:
+
+```text
+scripts/retrain_candidate.py
+```
+
+using the controlled production-data scenarios.
+
+### Reason
+
+Candidate training must be separate from the original historical baseline training workflow.
+
+This provides an explicit retraining path.
+
+---
+
+## Decision 100 — Track Retraining Candidates in a Separate MLflow Experiment
+
+**Status:** Final — Implemented
+
+### Decision
+
+Candidate retraining uses:
+
+```text
+building-energy-retraining
+```
+
+as the MLflow experiment.
+
+### Reason
+
+Retraining experiments should be distinguishable from the original Phase 1 model-development experiment.
+
+---
+
+## Decision 101 — Register Retrained Models Without Assigning Production
+
+**Status:** Final — Implemented
+
+### Decision
+
+Candidate versions are registered in:
+
+```text
+building-energy-forecast
+```
+
+but candidate registration does not assign the production alias.
+
+### Reason
+
+Registration and production deployment are separate lifecycle actions.
+
+---
+
+## Decision 102 — Preserve Candidate Lineage
+
+**Status:** Final — Implemented
+
+### Decision
+
+Candidate runs retain lifecycle metadata identifying:
+
+* retraining origin
+* source scenario
+* model family
+* candidate status
+* validation status
+
+### Reason
+
+A future reviewer must be able to distinguish original trained models from retraining candidates.
+
+---
+
+# 13. Candidate Evaluation and Promotion Decisions
+
+## Decision 103 — Evaluate All Retraining Candidates Before Promotion
+
+**Status:** Final — Implemented
+
+### Decision
+
+Each Phase 6 candidate is evaluated before any promotion decision is considered.
+
+Candidates:
+
+```text
+v4 — Ridge
+v5 — Random Forest
+v6 — HistGradientBoosting
+```
+
+### Reason
+
+The lifecycle must evaluate candidates independently rather than promoting the first successfully trained model.
+
+---
+
+## Decision 104 — Compare Candidates with Persistence on the Same Evaluation Population
+
+**Status:** Final — Implemented
+
+### Decision
+
+Candidate performance and persistence performance are evaluated on the same Phase 6 evaluation population.
+
+### Reason
+
+The comparison must be internally consistent.
+
+The project does not use a historical aggregate baseline metric as if it were directly interchangeable with a candidate metric calculated on a different evaluation population.
+
+---
+
+## Decision 105 — Do Not Promote a Candidate That Fails the Persistence Guard
+
+**Status:** Final — Implemented
+
+### Decision
+
+A candidate that fails the persistence comparison is rejected.
+
+### Reason
+
+The project does not assume that learned-model complexity automatically creates operational value.
+
+---
+
+## Decision 106 — Final Phase 6 Candidate Outcome
+
+**Status:** Final — Implemented
+
+### Decision
+
+The three Phase 6 candidates were evaluated on the shifted production-data scenario.
+
+Results:
+
+```text
+v4 — Ridge
+Candidate NMAE: 13.008031
+
+v5 — Random Forest
+Candidate NMAE: 9.466449
+
+v6 — HistGradientBoosting
+Candidate NMAE: 2.904410
+
+Persistence
+NMAE: 0.219467
+```
+
+None of the candidates beat persistence on this evaluation population.
+
+Therefore:
+
+```text
+v4 → REJECTED
+v5 → REJECTED
+v6 → REJECTED
+```
+
+### Reason
+
+The project must preserve the measured outcome rather than manufacture a successful learned-model promotion.
+
+---
+
+## Decision 107 — Keep the Production Alias Empty When No Learned Candidate Qualifies
+
+**Status:** Final — Implemented
+
+### Decision
+
+No learned model owns the production alias after Phase 6.
+
+Final state:
+
+```text
+Learned Production Model
+None
+
+Production Alias
+None
+```
+
+### Reason
+
+The absence of a qualifying learned candidate is a valid lifecycle state.
+
+The system must not create a false production state simply to demonstrate promotion.
+
+---
+
+## Decision 108 — Serve Persistence When No Learned Production Model Exists
+
+**Status:** Final — Implemented
+
+### Decision
+
+The FastAPI model service serves persistence when the MLflow registry has no valid learned production alias.
+
+Final serving state:
+
+```text
+serving_mode = baseline
+model_name = persistence
+model_version = baseline
+```
+
+### Reason
+
+The application remains operational while preserving the integrity of the model-promotion gate.
+
+---
+
+# 14. Rollback Decisions
+
+## Decision 109 — Implement Rollback Through the Production Alias
+
+**Status:** Final — Implemented
+
+### Decision
+
+Rollback is implemented by moving the MLflow `production` alias to a validated registered model version.
+
+### Lifecycle
+
+```text
+Current Production
+       ↓
+Operational Issue
+       ↓
+Known Registered Version
+       ↓
+Validation
+       ↓
+@production Alias
+       ↓
+FastAPI
+```
+
+---
+
+## Decision 110 — Validate Rollback Targets
+
+**Status:** Final — Implemented
+
+### Decision
+
+Rollback validates that:
+
+* the target model version exists
+* the target version is READY
+* the target is not already production
+* a learned production version currently exists
+
+### Reason
+
+Rollback must be a controlled operation rather than an arbitrary registry mutation.
+
+---
+
+## Decision 111 — Do Not Fake a Production State to Demonstrate Rollback
+
+**Status:** Final — Implemented
+
+### Decision
+
+Rollback is not demonstrated by artificially assigning a model to production solely for demonstration purposes.
+
+### Actual result
+
+When rollback was tested while no learned production model existed, the system correctly returned:
+
+```text
+No learned production model currently exists.
+Rollback cannot be demonstrated until a production alias exists.
+```
+
+### Reason
+
+The safety behavior is itself part of the lifecycle implementation.
+
+The project preserves the real final state instead of fabricating a production deployment.
+
+---
+
+# 15. Final Lifecycle Architecture Decisions
+
+## Decision 112 — Separate Monitoring, Eligibility, Training, Evaluation and Promotion
+
+**Status:** Final
+
+### Decision
+
+The completed architecture maintains explicit boundaries between:
+
+```text
+Monitoring
+   ↓
+Retraining Eligibility
+   ↓
+Candidate Training
+   ↓
+Experiment Tracking
+   ↓
+Candidate Evaluation
+   ↓
+Promotion Decision
+   ↓
+Production
+```
+
+### Reason
+
+Each stage answers a different question.
+
+```text
+Monitoring:
+"What is happening?"
+
+Eligibility:
+"Is there enough evidence to retrain?"
+
+Training:
+"Can we create a candidate?"
+
+Evaluation:
+"Does the candidate provide sufficient value?"
+
+Promotion:
+"Should this candidate become production?"
+```
+
+No stage silently performs the responsibility of another.
+
+---
+
+## Decision 113 — Preserve Candidate and Production Isolation
+
+**Status:** Final
+
+### Decision
+
+Candidate models remain isolated from production until they pass the promotion gate.
+
+### Reason
+
+Candidate training must never silently alter the model currently serving users.
+
+---
+
+## Decision 114 — Preserve Reproducible Lifecycle Evidence
+
+**Status:** Final
+
+### Decision
+
+The lifecycle preserves:
+
+* MLflow experiment runs
+* registered model versions
+* candidate versions
+* evaluation metrics
+* baseline comparisons
+* rejection state
+* promotion metadata where applicable
+* rollback metadata where applicable
+* simulation scenarios
+
+### Reason
+
+A model lifecycle should be auditable rather than represented only by the currently loaded model.
+
+---
+
+## Decision 115 — Treat Rejection as a Valid ML Lifecycle Outcome
+
+**Status:** Final
+
+### Decision
+
+Model rejection is considered a successful lifecycle outcome when evaluation criteria are not satisfied.
+
+### Reason
+
+The purpose of the lifecycle is to make a correct decision, not to guarantee promotion.
+
+The final Phase 6 outcome demonstrates:
+
+```text
+Train
+ ↓
+Register
+ ↓
+Evaluate
+ ↓
+Compare
+ ↓
+Reject
+ ↓
+Preserve Existing Serving Strategy
+```
+
+This is preferable to promoting a model that failed the defined benchmark.
+
+---
+
+# 16. Final System State
+
+## Decision 116 — Final Serving Strategy Is Persistence
+
+**Status:** Final
+
+### Decision
+
+The completed system serves the persistence baseline.
+
+```text
+Serving Mode
+baseline
+
+Model Name
+persistence
+
+Model Version
+baseline
+```
+
+### Reason
+
+No Phase 6 learned candidate passed the persistence guard.
+
+---
+
+## Decision 117 — Learned Models Remain Versioned and Auditable
+
+**Status:** Final
+
+### Decision
+
+The learned models remain available in MLflow for inspection and lifecycle history.
+
+Current Phase 6 candidate versions:
+
+```text
+v4 — Ridge
+v5 — Random Forest
+v6 — HistGradientBoosting
+```
+
+All three were rejected after evaluation.
+
+### Reason
+
+Rejection does not erase lifecycle evidence.
+
+---
+
+## Decision 118 — Do Not Redesign the Model Strategy After the Final Evaluation
+
+**Status:** Final
+
+### Decision
+
+The final architecture is not changed merely because persistence remained stronger than the learned candidates.
+
+### Reason
+
+The observed evaluation result is part of the project's technical outcome.
+
+Changing the simulation, evaluation strategy, or serving architecture solely to force a learned model into production would undermine the credibility of the lifecycle demonstration.
+
+---
+
+# 17. Final Product and Documentation Decisions
+
+## Decision 119 — Keep Model Lab as the ML Lifecycle Interface
+
+**Status:** Final
+
+### Decision
+
+Model Lab remains the product surface for:
+
+* experiments
+* model versions
+* evaluation
+* lifecycle metadata
+* baseline comparison
+* production/serving state
+
+It does not become an arbitrary model-selection interface.
+
+---
+
+## Decision 120 — Keep Monitoring as the Operational Interface
+
+**Status:** Final
+
+### Decision
+
+Monitoring remains the product surface for:
+
+* service state
+* prediction observations
+* serving state
+* data quality
+* drift
+* performance
+* persistence comparison
+* degradation evidence
+
+---
+
+## Decision 121 — Keep the Final Application Scope Focused
+
+**Status:** Final
+
+### Decision
+
+The final application retains analytical surfaces that provide direct value:
+
+```text
+Overview
+Buildings
+Building Details
+Consumption
+Forecasts
+Anomalies
+Model Lab
+Monitoring
+```
+
+### Reason
+
+The product should demonstrate the complete building-energy intelligence workflow without adding screens that do not contribute meaningful functionality.
+
+---
+
+## Decision 122 — Keep the Architecture Documentation as a Permanent Reference
+
+**Status:** Final
+
+### Decision
+
+The documentation describes the final system architecture rather than remaining a phase-by-phase implementation diary.
+
+The architecture documentation covers:
+
+* service boundaries
+* data flow
+* ML flow
+* inference
+* monitoring
+* lifecycle
+* Docker
+* testing
+* CI
+* limitations
+* final serving state
+
+---
+
+## Decision 123 — Preserve the Project's Historical Limitations
+
+**Status:** Final
+
+### Decision
+
+The project documentation explicitly states that:
+
+* BDG2 is historical
+* the current platform does not consume live telemetry
+* monitoring is locally maintained
+* monitoring state is bounded and in-memory
+* the platform is not cloud-scale
+* Kubernetes is not used
+* automatic autonomous retraining is not implemented
+* automatic autonomous promotion is not implemented
+
+### Reason
+
+Technical credibility requires clear boundaries around what the project actually demonstrates.
+
+---
+
+# 18. Final Architecture Principle
+
+## Decision 124 — Prefer Evidence Over Complexity
+
+**Status:** Final
+
+### Decision
+
+The project prioritizes measured engineering behavior over adding complexity for appearance.
+
+The governing principle is:
 
 ```text
 Do not add infrastructure because it sounds impressive.
@@ -2852,49 +2997,360 @@ Do not add infrastructure because it sounds impressive.
 Add infrastructure when the system has a real engineering requirement for it.
 ```
 
-The platform should therefore evolve from:
-
-```text
-Data
- ↓
-ML
- ↓
-Inference
- ↓
-Application
- ↓
-Lifecycle
- ↓
-Testing
- ↓
-CI
- ↓
-Monitoring
- ↓
-Degradation Detection
- ↓
-Retraining
- ↓
-Deployment
-```
-
-with each layer introduced only after the previous layer is sufficiently validated.
-
-The current architecture intentionally preserves:
+The completed architecture therefore favors:
 
 ```text
 Correctness
 +
 Reproducibility
 +
-Clear Boundaries
+Explicit Boundaries
 +
 Baseline Awareness
 +
-Testability
+Testing
 +
 Observability
 +
 Controlled Lifecycle Decisions
+```
 
-as the foundation for future development.
+---
+
+# 19. Final Lifecycle Contract
+
+## Decision 125 — The Complete ML Lifecycle Is Controlled End-to-End
+
+**Status:** Final
+
+### Decision
+
+The completed lifecycle is:
+
+```text
+NEW / INCOMING DATA
+        ↓
+VALIDATION
+        ↓
+MONITORING
+        ↓
+DATA QUALITY
+DRIFT
+PERFORMANCE
+SERVICE HEALTH
+        ↓
+SUSTAINED DEGRADATION
+        ↓
+RETRAINING ELIGIBILITY
+        ↓
+CANDIDATE TRAINING
+        ↓
+MLFLOW EXPERIMENT
+        ↓
+REGISTERED CANDIDATE
+        ↓
+CANDIDATE EVALUATION
+        ↓
+COMPARE WITH REQUIRED REFERENCES
+        ↓
+PROMOTION GATE
+        │
+        ├───────────────┐
+        ▼               ▼
+      REJECT          PROMOTE
+        │               │
+        │               ▼
+        │        PRODUCTION ALIAS
+        │               │
+        │               ▼
+        │        PRODUCTION MODEL
+        │               │
+        └───────────────┘
+                        ↓
+                    INFERENCE
+                        ↓
+                   MONITORING
+```
+
+The lifecycle is controlled at every transition.
+
+---
+
+# 20. Final Project Outcome
+
+## Decision 126 — The Project Ends with a Valid Baseline-Serving State
+
+**Status:** Final
+
+### Decision
+
+The completed Building & Energy Intelligence Platform ends with:
+
+```text
+Historical BDG2 Data
+        ↓
+Validation
+        ↓
+Feature Engineering
+        ↓
+ML Training
+        ↓
+MLflow
+        ↓
+Model Registry
+        ↓
+Controlled Candidate Retraining
+        ↓
+Candidate Evaluation
+        ↓
+Persistence Comparison
+        ↓
+Candidate Rejection
+        ↓
+Persistence Serving
+        ↓
+Monitoring
+```
+
+### Final learned-model state
+
+```text
+v4 — Ridge
+REJECTED
+
+v5 — Random Forest
+REJECTED
+
+v6 — HistGradientBoosting
+REJECTED
+```
+
+### Final production state
+
+```text
+Learned Production Model
+None
+
+Production Alias
+None
+
+Serving Strategy
+Persistence Baseline
+
+Serving Mode
+baseline
+```
+
+### Final lifecycle conclusion
+
+The project does not claim that a learned model is production-ready when the completed evaluation did not establish that result.
+
+The final state is therefore:
+
+```text
+Trained Models
+      ↓
+Versioned
+      ↓
+Evaluated
+      ↓
+Compared Against Baseline
+      ↓
+Rejected Where Necessary
+      ↓
+Operational Baseline Preserved
+```
+
+This is the final model lifecycle outcome.
+
+---
+
+# 21. Final Engineering Record
+
+The completed platform demonstrates:
+
+```text
+Data Engineering
+        ↓
+Feature Engineering
+        ↓
+Machine Learning
+        ↓
+Inference Service
+        ↓
+Application API
+        ↓
+Web Application
+        ↓
+Docker
+        ↓
+MLflow
+        ↓
+Model Registry
+        ↓
+Model Evaluation
+        ↓
+Baseline-Aware Promotion
+        ↓
+Operational Monitoring
+        ↓
+Data Quality Monitoring
+        ↓
+Drift Detection
+        ↓
+Performance Monitoring
+        ↓
+Sustained Degradation Detection
+        ↓
+Retraining Eligibility
+        ↓
+Controlled Candidate Retraining
+        ↓
+Experiment Tracking
+        ↓
+Candidate Evaluation
+        ↓
+Candidate Rejection / Promotion
+        ↓
+Rollback Capability
+        ↓
+Final Controlled Serving
+```
+
+The completed repository therefore represents a complete local MLOps demonstration rather than only an ML model.
+
+---
+
+# 22. Final Non-Negotiable Lifecycle Rules
+
+The final system follows these rules:
+
+```text
+1. A trained model is not automatically a production model.
+
+2. A registered model is not automatically a production model.
+
+3. A candidate is isolated from production.
+
+4. Candidate evaluation occurs before promotion.
+
+5. Persistence remains the operational benchmark.
+
+6. A learned model must satisfy the defined baseline-aware promotion gate.
+
+7. A failed candidate is rejected rather than force-promoted.
+
+8. Drift does not independently trigger retraining.
+
+9. Data-quality problems are evaluated separately from model degradation.
+
+10. Short-lived performance degradation does not qualify as sustained degradation.
+
+11. Sufficient observations are required before degradation decisions.
+
+12. Retraining eligibility does not itself modify production.
+
+13. Candidate training does not modify production.
+
+14. Evaluation does not automatically modify production.
+
+15. Promotion is an explicit lifecycle action.
+
+16. Production state is represented through MLflow lifecycle state.
+
+17. Rollback targets must be valid registered model versions.
+
+18. Rollback is not fabricated when no learned production model exists.
+
+19. Monitoring does not unnecessarily break valid inference.
+
+20. Historical data is not represented as live telemetry.
+
+21. The current project is local-first and CPU-first.
+
+22. The project does not introduce infrastructure without a genuine requirement.
+
+23. Software correctness and predictive quality remain separate concerns.
+
+24. The final measured lifecycle outcome is preserved rather than altered for presentation.
+```
+
+---
+
+# Final Decision
+
+The Building & Energy Intelligence Platform is complete.
+
+Its final architecture is:
+
+```text
+DATA
+ ↓
+VALIDATION
+ ↓
+FEATURE ENGINEERING
+ ↓
+TRAINING
+ ↓
+EXPERIMENT TRACKING
+ ↓
+MODEL REGISTRY
+ ↓
+CONTROLLED EVALUATION
+ ↓
+PROMOTION / REJECTION
+ ↓
+SERVING
+ ↓
+MONITORING
+ ↓
+DRIFT / PERFORMANCE / DATA QUALITY
+ ↓
+SUSTAINED DEGRADATION
+ ↓
+RETRAINING ELIGIBILITY
+ ↓
+CANDIDATE TRAINING
+ ↓
+EXPERIMENT TRACKING
+ ↓
+CANDIDATE EVALUATION
+ ↓
+PROMOTION / REJECTION
+ ↓
+SERVING
+ ↓
+MONITORING
+```
+
+The final implementation deliberately ends with:
+
+```text
+Persistence Baseline
+        ↓
+Operational Serving
+```
+
+because the Phase 6 learned candidates did not satisfy the persistence-based promotion requirement.
+
+No learned model is falsely represented as production.
+
+No rollback state is fabricated.
+
+No automatic retraining is claimed where controlled retraining was actually implemented.
+
+No live telemetry capability is claimed where the project uses historical BDG2 data.
+
+The decision log therefore records the final engineering truth of the project:
+
+```text
+Build the system.
+Measure it.
+Evaluate it.
+Preserve the evidence.
+Promote only when justified.
+Reject when the evidence requires rejection.
+Keep the system operational.
+```
+
+**This is the final decision record for the completed Building & Energy Intelligence Platform.**
