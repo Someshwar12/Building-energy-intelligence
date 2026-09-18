@@ -2,19 +2,25 @@
 
 # Building & Energy Intelligence Platform
 
-### End-to-end machine learning, inference, monitoring, and controlled MLOps for building energy forecasting
+### End-to-end ML forecasting and MLOps for building energy intelligence
 
 <p>
-<strong>Data → Features → ML → API → Dashboard → Docker → MLflow → Monitoring → Controlled Retraining</strong>
+A production-oriented portfolio system covering the complete ML lifecycle:
+<strong>data → training → evaluation → serving → monitoring → controlled retraining</strong>
 </p>
 
 <p>
-<a href="https://github.com/Someshwar12/building-energy-intelligence">GitHub Repository</a> ·
-Python · Next.js · FastAPI · scikit-learn · MLflow · Docker
+<strong>Python · scikit-learn · FastAPI · Next.js · MLflow · Docker</strong>
 </p>
 
 <p>
-<strong>64 automated tests passing · CPU-first · Open source</strong>
+<a href="https://github.com/Someshwar12/building-energy-intelligence">View Repository</a>
+&nbsp; · &nbsp;
+<strong>64 tests passing</strong>
+&nbsp; · &nbsp;
+<strong>CPU-first</strong>
+&nbsp; · &nbsp;
+<strong>MIT License</strong>
 </p>
 
 </div>
@@ -114,21 +120,21 @@ flowchart TB
     D --> F[Model Training]
     F --> G[Model Evaluation]
 
-    E --> H[Promotion Gate]
+    E --> H["Promotion Gate"]
     G --> H
     G --> I[MLflow Tracking]
     I --> J[MLflow Registry]
     J --> H
 
-    H -->|Approved| K[@production]
-    H -->|Rejected| L[Rejected Candidate]
+    H -->|Approved| K["@production"]
+    H -->|Rejected| L["Rejected Candidate"]
 
     K --> M[FastAPI Model Service]
     M --> N[Application API]
     N --> O[Next.js Web App]
 
     M --> P[Monitoring]
-    P --> Q[Drift / Performance / Data Quality]
+    P --> Q["Drift / Performance / Data Quality"]
     Q --> R[Retraining Eligibility]
     R --> S[Candidate Retraining]
     S --> I
