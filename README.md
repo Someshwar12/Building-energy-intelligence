@@ -76,7 +76,7 @@ A central design decision is that **a trained model is not automatically a produ
 
 A walkthrough of the Building & Energy Intelligence Platform, covering the application dashboard, energy analysis, forecasting, model lifecycle, monitoring, and anomaly detection.
 
-**Demo video:** [Building & Energy Intelligence Platform — Full Walkthrough](./assets/building video 1.mp4)
+**Demo video:** [Building & Energy Intelligence Platform — Full Walkthrough](./assets/building_video.mp4)
 
 ---
 
